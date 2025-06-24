@@ -179,13 +179,13 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                   <Input
                     name="search"
                     placeholder="ライター名、大学名、学部で検索..."
-                    defaultValue={searchParams.search}
+                    defaultValue={params.search}
                     className="pl-10"
                   />
                 </div>
 
                 {/* 大学フィルター */}
-                <Select name="university" defaultValue={searchParams.university || "all"}>
+                <Select name="university" defaultValue={params.university || "all"}>
                   <SelectTrigger className="w-full lg:w-48">
                     <SelectValue placeholder="大学で絞り込み" />
                   </SelectTrigger>
@@ -200,7 +200,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                 </Select>
 
                 {/* 認証ステータスフィルター */}
-                <Select name="verified" defaultValue={searchParams.verified || "all"}>
+                <Select name="verified" defaultValue={params.verified || "all"}>
                   <SelectTrigger className="w-full lg:w-40">
                     <SelectValue placeholder="認証状態" />
                   </SelectTrigger>
@@ -211,7 +211,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                 </Select>
 
                 {/* ソートオプション */}
-                <Select name="sort" defaultValue={searchParams.sort || 'verified'}>
+                <Select name="sort" defaultValue={params.sort || 'verified'}>
                   <SelectTrigger className="w-full lg:w-40">
                     <SelectValue placeholder="並び順" />
                   </SelectTrigger>
