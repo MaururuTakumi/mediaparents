@@ -199,7 +199,7 @@ export default async function AdminDashboardPage() {
                   <div>
                     <h4 className="font-medium">{article.title}</h4>
                     <p className="text-sm text-gray-500">
-                      {article.writers?.name} • {new Date(article.created_at).toLocaleDateString('ja-JP')}
+                      {Array.isArray(article.writers) ? article.writers[0]?.name : article.writers?.name} • {new Date(article.created_at).toLocaleDateString('ja-JP')}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">

@@ -45,7 +45,9 @@ export default async function AdminReportsPage() {
                         記事: {report.articles?.title}
                       </h4>
                       <p className="text-sm text-gray-500">
-                        ライター: {report.articles?.writers?.name}
+                        ライター: {Array.isArray(report.articles?.writers) 
+                          ? report.articles?.writers[0]?.name 
+                          : report.articles?.writers?.name}
                       </p>
                       <div className="flex items-center space-x-2 mt-2">
                         <Badge variant="destructive">

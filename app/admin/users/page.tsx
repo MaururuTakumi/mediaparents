@@ -68,7 +68,12 @@ interface UserData {
     name: string
     university: string
     is_verified: boolean
-  }
+  } | Array<{
+    id: string
+    name: string
+    university: string
+    is_verified: boolean
+  }>
   user_bans?: {
     is_active: boolean
     reason: string
@@ -246,11 +251,12 @@ export default function AdminUsersPage() {
     ? users.filter(user => 
         user.email.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : writers.filter(writer => 
-        writer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        writer.writers?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        writer.writers?.university.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    : writers.filter(writer => {
+        const writerData = Array.isArray(writer.writers) ? writer.writers[0] : writer.writers;
+        return writer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          writerData?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          writerData?.university?.toLowerCase().includes(searchQuery.toLowerCase())
+      })
 
   const isBanned = (user: UserData) => {
     return user.user_bans?.some(ban => ban.is_active) || false
@@ -335,13 +341,13 @@ export default function AdminUsersPage() {
                         <>
                           <TableCell>
                             <div className="flex items-center space-x-2">
-                              <span>{user.writers?.name}</span>
-                              {user.writers?.is_verified && (
+                              <span>{Array.isArray(user.writers) ? user.writers[0]?.name : user.writers?.name}</span>
+                              {(Array.isArray(user.writers) ? user.writers[0]?.is_verified : user.writers?.is_verified) && (
                                 <Badge className="bg-blue-500 text-xs">認証済み</Badge>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>{user.writers?.university}</TableCell>
+                          <TableCell>{Array.isArray(user.writers) ? user.writers[0]?.university : user.writers?.university}</TableCell>
                           <TableCell>{user._count?.articles || 0}</TableCell>
                         </>
                       )}
