@@ -28,6 +28,34 @@ interface SeminarDetailPageProps {
   }>
 }
 
+interface SeminarDetail {
+  id: string
+  title: string
+  description: string
+  scheduled_at: string
+  duration_minutes: number
+  max_participants: number
+  price: number
+  meeting_url?: string
+  is_active: boolean
+  created_at: string
+  writers: {
+    id: string
+    name: string
+    avatar_url?: string
+    university: string
+    faculty?: string
+    grade: number
+    bio?: string
+    is_verified: boolean
+  } | null
+  seminar_participants: Array<{
+    id: string
+    user_id: string
+    status: string
+  }>
+}
+
 async function getSeminarDetail(id: string) {
   const supabase = await createClient()
   
@@ -77,7 +105,7 @@ async function getSeminarDetail(id: string) {
     )
 
     return {
-      seminar,
+      seminar: seminar as SeminarDetail,
       currentUser: user,
       isRegistered
     }
@@ -153,7 +181,7 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
               ) : (
                 <Badge variant="default">受付中</Badge>
               )}
-              {(Array.isArray(seminar.writers) ? seminar.writers[0]?.is_verified : seminar.writers?.is_verified) && (
+              {seminar.writers?.is_verified && (
                 <Badge variant="outline" className="bg-green-50">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   認証済みライター
