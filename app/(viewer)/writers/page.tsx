@@ -275,19 +275,19 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                {searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true'
+                {params.search || (params.university && params.university !== 'all') || params.verified === 'true'
                   ? '条件に一致するライターが見つかりませんでした' 
                   : 'ライターが登録されていません'
                 }
               </h3>
               <p className="text-gray-600 mb-8">
-                {searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true'
+                {params.search || (params.university && params.university !== 'all') || params.verified === 'true'
                   ? '検索条件を変更してお試しください。'
                   : '現在、ライターの登録準備中です。しばらくお待ちください。'
                 }
               </p>
               <div className="space-x-4">
-                {(searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true') && (
+                {(params.search || (params.university && params.university !== 'all') || params.verified === 'true') && (
                   <Button asChild variant="outline">
                     <a href="/writers">すべてのライターを見る</a>
                   </Button>
