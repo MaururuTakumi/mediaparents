@@ -110,13 +110,13 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
         
-        if (invoice.subscription) {
+        if ((invoice as any).subscription) {
           await supabase
             .from('profiles')
             .update({
               last_payment_date: new Date().toISOString(),
             })
-            .eq('stripe_subscription_id', invoice.subscription);
+            .eq('stripe_subscription_id', (invoice as any).subscription);
         }
         break;
       }
@@ -124,13 +124,13 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         
-        if (invoice.subscription) {
+        if ((invoice as any).subscription) {
           await supabase
             .from('profiles')
             .update({
               subscription_status: 'past_due',
             })
-            .eq('stripe_subscription_id', invoice.subscription);
+            .eq('stripe_subscription_id', (invoice as any).subscription);
         }
         break;
       }
