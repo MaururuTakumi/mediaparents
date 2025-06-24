@@ -14,7 +14,7 @@ interface SearchParams {
 }
 
 interface WritersPageProps {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }
 
 async function getWriters(searchParams: SearchParams) {
@@ -120,7 +120,8 @@ async function getUniversities() {
 }
 
 export default async function WritersPage({ searchParams }: WritersPageProps) {
-  const writers = await getWriters(searchParams)
+  const params = await searchParams
+  const writers = await getWriters(params)
   const universities = await getUniversities()
   
   const verifiedCount = writers.filter(w => w.is_verified).length
