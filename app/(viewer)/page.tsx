@@ -198,7 +198,9 @@ export default async function Home() {
                         })}
                       </p>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{seminar.writers?.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
+                        </span>
                         <span className="text-xs font-medium text-blue-600">
                           ¥{seminar.price?.toLocaleString()}
                         </span>

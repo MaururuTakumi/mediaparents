@@ -153,7 +153,7 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
               ) : (
                 <Badge variant="default">受付中</Badge>
               )}
-              {seminar.writers?.is_verified && (
+              {(Array.isArray(seminar.writers) ? seminar.writers[0]?.is_verified : seminar.writers?.is_verified) && (
                 <Badge variant="outline" className="bg-green-50">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   認証済みライター
@@ -177,34 +177,34 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
               <CardContent>
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={seminar.writers?.avatar_url || ''} />
+                    <AvatarImage src={(Array.isArray(seminar.writers) ? seminar.writers[0]?.avatar_url : seminar.writers?.avatar_url) || ''} />
                     <AvatarFallback className="text-xl">
-                      {seminar.writers?.name?.[0] || 'H'}
+                      {(Array.isArray(seminar.writers) ? seminar.writers[0]?.name?.[0] : seminar.writers?.name?.[0]) || 'H'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-1">
-                      {seminar.writers?.name}
+                      {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
                     </h3>
                     <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                       <div className="flex items-center gap-1">
                         <GraduationCap className="h-4 w-4" />
-                        {seminar.writers?.university}
+                        {Array.isArray(seminar.writers) ? seminar.writers[0]?.university : seminar.writers?.university}
                       </div>
-                      {seminar.writers?.faculty && (
+                      {(Array.isArray(seminar.writers) ? seminar.writers[0]?.faculty : seminar.writers?.faculty) && (
                         <div className="flex items-center gap-1">
                           <User className="h-4 w-4" />
-                          {seminar.writers?.faculty} {seminar.writers?.grade}年生
+                          {Array.isArray(seminar.writers) ? seminar.writers[0]?.faculty : seminar.writers?.faculty} {Array.isArray(seminar.writers) ? seminar.writers[0]?.grade : seminar.writers?.grade}年生
                         </div>
                       )}
                     </div>
-                    {seminar.writers?.bio && (
+                    {(Array.isArray(seminar.writers) ? seminar.writers[0]?.bio : seminar.writers?.bio) && (
                       <p className="text-sm text-gray-600 leading-relaxed">
-                        {seminar.writers?.bio}
+                        {Array.isArray(seminar.writers) ? seminar.writers[0]?.bio : seminar.writers?.bio}
                       </p>
                     )}
                     <Button asChild variant="link" className="px-0 mt-2">
-                      <Link href={`/writers/${seminar.writers?.id}`}>
+                      <Link href={`/writers/${Array.isArray(seminar.writers) ? seminar.writers[0]?.id : seminar.writers?.id}`}>
                         プロフィールを見る →
                       </Link>
                     </Button>
@@ -385,6 +385,6 @@ export async function generateMetadata({ params }: SeminarDetailPageProps) {
   
   return {
     title: `${seminar.title} | 座談会 | ありがとうお父さんお母さん`,
-    description: `${seminar.writers?.name}さんによる座談会「${seminar.title}」。${seminar.description}`,
+    description: `${Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}さんによる座談会「${seminar.title}」。${seminar.description}`,
   }
 }

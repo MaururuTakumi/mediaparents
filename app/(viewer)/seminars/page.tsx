@@ -145,17 +145,17 @@ export default async function SeminarsPage() {
                         {/* ホスト情報 */}
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={seminar.writers?.avatar_url || ''} />
+                            <AvatarImage src={(Array.isArray(seminar.writers) ? seminar.writers[0]?.avatar_url : seminar.writers?.avatar_url) || ''} />
                             <AvatarFallback>
-                              {seminar.writers?.name?.[0] || 'H'}
+                              {(Array.isArray(seminar.writers) ? seminar.writers[0]?.name?.[0] : seminar.writers?.name?.[0]) || 'H'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">
-                              {seminar.writers?.name}
+                              {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
                             </p>
                             <p className="text-xs text-gray-500 truncate">
-                              {seminar.writers?.university} {seminar.writers?.faculty}
+                              {Array.isArray(seminar.writers) ? seminar.writers[0]?.university : seminar.writers?.university} {Array.isArray(seminar.writers) ? seminar.writers[0]?.faculty : seminar.writers?.faculty}
                             </p>
                           </div>
                         </div>
@@ -249,17 +249,17 @@ export default async function SeminarsPage() {
                     <CardContent>
                       <div className="flex items-center gap-3 mb-4">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={seminar.writers?.avatar_url || ''} />
+                          <AvatarImage src={(Array.isArray(seminar.writers) ? seminar.writers[0]?.avatar_url : seminar.writers?.avatar_url) || ''} />
                           <AvatarFallback>
-                            {seminar.writers?.name?.[0] || 'H'}
+                            {(Array.isArray(seminar.writers) ? seminar.writers[0]?.name?.[0] : seminar.writers?.name?.[0]) || 'H'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {seminar.writers?.name}
+                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {seminar.writers?.university}
+                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.university : seminar.writers?.university}
                           </p>
                         </div>
                       </div>
