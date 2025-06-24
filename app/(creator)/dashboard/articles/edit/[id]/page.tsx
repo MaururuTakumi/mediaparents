@@ -17,7 +17,7 @@ interface Article {
   id: string
   title: string
   content: string
-  excerpt?: string
+  excerpt?: string | null
   format: 'text' | 'video' | 'audio'
   status: 'draft' | 'published' | 'archived'
   is_premium: boolean
