@@ -224,20 +224,20 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
               </div>
 
               {/* 適用されているフィルターの表示 */}
-              {(searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true') && (
+              {(params.search || (params.university && params.university !== 'all') || params.verified === 'true') && (
                 <div className="flex flex-wrap gap-2">
                   <span className="text-sm text-gray-600">フィルター:</span>
-                  {searchParams.search && (
+                  {params.search && (
                     <Badge variant="secondary">
-                      検索: {searchParams.search}
+                      検索: {params.search}
                     </Badge>
                   )}
-                  {searchParams.university && searchParams.university !== 'all' && (
+                  {params.university && params.university !== 'all' && (
                     <Badge variant="secondary">
-                      大学: {searchParams.university}
+                      大学: {params.university}
                     </Badge>
                   )}
-                  {searchParams.verified === 'true' && (
+                  {params.verified === 'true' && (
                     <Badge variant="secondary">
                       認証済みのみ
                     </Badge>
