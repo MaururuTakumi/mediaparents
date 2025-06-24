@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
             .eq('id', userId);
 
           // サブスクリプションテーブルに記録
-          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          const subscriptionResponse = await stripe.subscriptions.retrieve(session.subscription as string);
+          const subscription = subscriptionResponse as Stripe.Subscription;
           await supabase
             .from('subscriptions')
             .insert({
