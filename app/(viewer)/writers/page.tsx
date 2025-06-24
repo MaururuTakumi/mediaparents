@@ -258,9 +258,9 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                 <h2 className="text-2xl font-bold text-gray-900">
                   {writers.length}名のライター
                 </h2>
-                {searchParams.search && (
+                {params.search && (
                   <p className="text-gray-600">
-                    「{searchParams.search}」の検索結果
+                    「{params.search}」の検索結果
                   </p>
                 )}
               </div>
