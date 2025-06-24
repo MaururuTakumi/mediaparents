@@ -108,11 +108,17 @@ async function getHomePageData() {
       .order('scheduled_at', { ascending: true })
       .limit(3)
 
+    // writersプロパティを正規化（配列の場合は最初の要素を取得）
+    const normalizedSeminars = upcomingSeminars?.map((seminar: any) => ({
+      ...seminar,
+      writers: Array.isArray(seminar.writers) ? seminar.writers[0] : seminar.writers
+    })) as SeminarWithWriter[]
+
     return {
       popularArticles: popularArticles || [],
       latestArticles: latestArticles || [],
       featuredWriters: featuredWriters || [],
-      upcomingSeminars: (upcomingSeminars as SeminarWithWriter[]) || []
+      upcomingSeminars: normalizedSeminars || []
     }
   } catch (error) {
     console.error('Error fetching home page data:', error)
