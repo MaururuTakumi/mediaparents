@@ -242,7 +242,7 @@ export default async function WriterDetailPage({ params }: WriterDetailPageProps
                     key={article.id} 
                     article={{
                       ...article,
-                      writers: {
+                      author: {
                         id: writer.id,
                         name: writer.name,
                         avatar_url: writer.avatar_url,
