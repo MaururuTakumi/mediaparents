@@ -99,13 +99,19 @@ async function getSeminarDetail(id: string) {
     // 現在のユーザー情報を取得
     const { data: { user } } = await supabase.auth.getUser()
 
+    // writersプロパティを正規化（配列の場合は最初の要素を取得）
+    const normalizedSeminar = {
+      ...seminar,
+      writers: Array.isArray(seminar.writers) ? seminar.writers[0] : seminar.writers
+    }
+
     // ユーザーが既に参加登録しているかチェック
     const isRegistered = user && seminar.seminar_participants?.some(
       participant => participant.user_id === user.id
     )
 
     return {
-      seminar: seminar as SeminarDetail,
+      seminar: normalizedSeminar as SeminarDetail,
       currentUser: user,
       isRegistered
     }
