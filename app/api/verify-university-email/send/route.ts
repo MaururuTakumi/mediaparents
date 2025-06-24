@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${verificationToken}`
     
     const { error: emailError } = await resend.emails.send({
-      from: 'ありがとうお父さんお母さん <noreply@todaimedia.com>',
+      from: 'ありがとうお父さんお母さん <onboarding@resend.dev>',  // TODO: カスタムドメイン取得後に変更
       to: universityEmail,
       subject: '【ありがとうお父さんお母さん】大学メールアドレスの確認',
       html: `
