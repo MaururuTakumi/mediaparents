@@ -147,17 +147,17 @@ export default function PlanComparison() {
                     <div key={index} className="flex items-center justify-between py-2">
                       <span className="text-sm text-white">{feature.name}</span>
                       <div className="flex items-center">
-                        {feature.premium === false ? (
-                          <X className="h-4 w-4 text-red-300" />
-                        ) : (
+                        {feature.premium ? (
                           <div className="flex items-center">
                             <Check className="h-4 w-4 text-green-300 mr-2" />
-                            {feature.highlight && (
+                            {feature.highlight && typeof feature.premium === 'string' && (
                               <span className="text-xs text-purple-100 text-right">
                                 {feature.premium}
                               </span>
                             )}
                           </div>
+                        ) : (
+                          <X className="h-4 w-4 text-red-300" />
                         )}
                       </div>
                     </div>
