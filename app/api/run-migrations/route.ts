@@ -68,7 +68,12 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     
-    const results = {
+    const results: {
+      step1: string | null;
+      step2: string | null;
+      step3: string | null;
+      errors: { step: string; error: string }[];
+    } = {
       step1: null,
       step2: null,
       step3: null,
