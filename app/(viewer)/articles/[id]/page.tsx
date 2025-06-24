@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Eye, Heart, Share2, Calendar, User, GraduationCap, Lock } from 'lucide-react'
 import Link from 'next/link'
+import ArticleComments from '@/components/article-comments'
+import ArticleQuestions from '@/components/article-questions'
 
 interface Article {
   id: string
@@ -68,20 +70,31 @@ async function getArticle(id: string): Promise<Article | null> {
   return data as Article
 }
 
-async function checkPremiumAccess(userId?: string): Promise<boolean> {
-  if (!userId) return false
+async function checkPremiumAccess(userId: string | undefined, articleId: string): Promise<{
+  canAccess: boolean
+  reason?: string
+  currentCount?: number
+  monthlyLimit?: number
+  remaining?: number
+}> {
+  if (!userId) {
+    return { canAccess: false, reason: 'not_authenticated' }
+  }
 
   const supabase = await createClient()
   
-  const { data } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .gte('current_period_end', new Date().toISOString())
-    .single()
+  // RPC関数を呼び出してアクセス可否をチェック
+  const { data, error } = await supabase.rpc('can_access_premium_article', {
+    p_user_id: userId,
+    p_article_id: articleId
+  })
 
-  return !!data
+  if (error) {
+    console.error('Error checking premium access:', error)
+    return { canAccess: false, reason: 'error' }
+  }
+
+  return data || { canAccess: false, reason: 'unknown' }
 }
 
 async function incrementViewCount(articleId: string) {
@@ -106,9 +119,18 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   // プレミアム記事のアクセス制御
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const hasPremiumAccess = await checkPremiumAccess(user?.id)
+  const premiumAccess = await checkPremiumAccess(user?.id, article.id)
 
-  const shouldShowPremiumPaywall = article.is_premium && !hasPremiumAccess
+  // プレミアム記事で、アクセスが許可されている場合は閲覧履歴を記録
+  if (article.is_premium && premiumAccess.canAccess && user?.id && 
+      ['within_free_limit', 'has_subscription'].includes(premiumAccess.reason || '')) {
+    await supabase.rpc('record_premium_article_view', {
+      p_user_id: user.id,
+      p_article_id: article.id
+    })
+  }
+
+  const shouldShowPremiumPaywall = article.is_premium && !premiumAccess.canAccess
   const displayContent = shouldShowPremiumPaywall 
     ? article.content.substring(0, 500) + '...' 
     : article.content
@@ -144,6 +166,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <Badge variant="outline" className="border-yellow-500 text-yellow-600">
                   <Lock className="h-3 w-3 mr-1" />
                   プレミアム
+                </Badge>
+              )}
+              {article.is_premium && premiumAccess.reason === 'within_free_limit' && premiumAccess.remaining !== undefined && (
+                <Badge variant="outline" className="border-blue-500 text-blue-600">
+                  無料プレミアム記事 残り{premiumAccess.remaining}本
                 </Badge>
               )}
               <div className="flex flex-wrap gap-1">
@@ -205,32 +232,88 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                     <div className="mt-8 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
                       <div className="text-center">
                         <Lock className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                          続きを読むにはプレミアム会員登録が必要です
-                        </h3>
-                        <p className="text-gray-600 mb-4">
-                          このコンテンツは有料会員限定です。全ての記事を読むには会員登録をお願いします。
-                        </p>
-                        <div className="space-x-4">
-                          <Link href="/subscribe">
-                            <Button className="bg-yellow-500 hover:bg-yellow-600">
-                              プレミアム会員になる
-                            </Button>
-                          </Link>
-                          {!user && (
-                            <Link href="/login">
-                              <Button variant="outline">
-                                ログイン
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
+                        
+                        {premiumAccess.reason === 'not_authenticated' ? (
+                          <>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                              続きを読むにはログインが必要です
+                            </h3>
+                            <p className="text-gray-600 mb-4">
+                              プレミアム記事を読むにはログインしてください。
+                              <br />
+                              無料会員の方も月3本まで無料でお読みいただけます。
+                            </p>
+                            <div className="space-x-4">
+                              <Link href="/login">
+                                <Button className="bg-blue-500 hover:bg-blue-600">
+                                  ログイン
+                                </Button>
+                              </Link>
+                              <Link href="/register">
+                                <Button variant="outline">
+                                  無料会員登録
+                                </Button>
+                              </Link>
+                            </div>
+                          </>
+                        ) : premiumAccess.reason === 'free_limit_exceeded' ? (
+                          <>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                              今月の無料閲覧数に達しました
+                            </h3>
+                            <p className="text-gray-600 mb-4">
+                              無料会員の方は月{premiumAccess.monthlyLimit}本までプレミアム記事をお読みいただけます。
+                              <br />
+                              今月はすでに{premiumAccess.currentCount}本お読みいただいています。
+                              <br />
+                              引き続きお楽しみいただくには、プレミアム会員への登録をお願いします。
+                            </p>
+                            <div className="space-y-2">
+                              <Link href="/subscription">
+                                <Button className="bg-yellow-500 hover:bg-yellow-600">
+                                  プレミアム会員になる（月額1,000円）
+                                </Button>
+                              </Link>
+                              <p className="text-sm text-gray-500">
+                                いつでも解約可能・初月から料金が発生します
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                              続きを読むにはプレミアム会員登録が必要です
+                            </h3>
+                            <p className="text-gray-600 mb-4">
+                              このコンテンツは有料会員限定です。
+                              <br />
+                              全ての記事を無制限でお読みいただくには会員登録をお願いします。
+                            </p>
+                            <div className="space-x-4">
+                              <Link href="/subscription">
+                                <Button className="bg-yellow-500 hover:bg-yellow-600">
+                                  プレミアム会員になる
+                                </Button>
+                              </Link>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Questions Section */}
+            {!shouldShowPremiumPaywall && (
+              <ArticleQuestions articleId={article.id} writerId={article.writers.id} />
+            )}
+
+            {/* Comments Section */}
+            {!shouldShowPremiumPaywall && (
+              <ArticleComments articleId={article.id} isPremium={article.is_premium} />
+            )}
           </div>
 
           {/* Sidebar */}

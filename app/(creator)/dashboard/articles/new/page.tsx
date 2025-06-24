@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Sparkles, Eye, Save, FileText } from 'lucide-react'
+import { ArrowLeft, Sparkles, Eye, Save, FileText, Wand2 } from 'lucide-react'
 import Link from 'next/link'
 import NoteEditor from '@/components/note-editor'
 
@@ -22,8 +22,8 @@ export default function NewArticlePage() {
   const [content, setContent] = useState('')
   const [excerpt, setExcerpt] = useState('')
   const [tags, setTags] = useState('')
-  const [isPremium, setIsPremium] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false)
   const [activeTab, setActiveTab] = useState('edit')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -129,7 +129,7 @@ export default function NewArticlePage() {
   // 変更の検知
   useEffect(() => {
     setHasUnsavedChanges(true)
-  }, [title, content, excerpt, tags, isPremium])
+  }, [title, content, excerpt, tags])
 
   const handleAutoSave = async () => {
     if (!title.trim() || !content.trim()) return
@@ -179,7 +179,7 @@ export default function NewArticlePage() {
           excerpt: excerpt.trim() || null,
           writer_id: writer.id,
           tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
-          is_premium: isPremium,
+          is_premium: false,
           status,
           published_at: status === 'published' ? new Date().toISOString() : null
         })
@@ -208,54 +208,100 @@ export default function NewArticlePage() {
     }
   }
 
+  // AI要約生成関数
+  const generateExcerpt = async () => {
+    if (!title || !content) {
+      alert('記事のタイトルと本文を入力してください')
+      return
+    }
+
+    setIsGeneratingExcerpt(true)
+
+    try {
+      const response = await fetch('/api/generate-excerpt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          content
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('要約の生成に失敗しました')
+      }
+
+      const data = await response.json()
+      if (data.excerpt) {
+        setExcerpt(data.excerpt)
+        setHasUnsavedChanges(true)
+      }
+    } catch (error) {
+      console.error('要約生成エラー:', error)
+      alert('要約の生成に失敗しました。もう一度お試しください。')
+    } finally {
+      setIsGeneratingExcerpt(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+      {/* ヘッダー（note風シンプルデザイン） */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-6">
               <Link href="/dashboard/articles">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  戻る
+                <Button variant="ghost" size="sm" className="hover:bg-gray-100">
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <div className="flex items-center space-x-3">
-                {lastSaved && (
-                  <span className="text-sm text-gray-500">
-                    {lastSaved.toLocaleTimeString()}に保存済み
-                  </span>
-                )}
-                {hasUnsavedChanges && (
-                  <span className="text-sm text-orange-600">
-                    未保存の変更があります
-                  </span>
-                )}
+              
+              {/* エディット/プレビュー切り替え（note風） */}
+              <div className="flex items-center bg-gray-100 rounded-full p-1">
+                <button
+                  onClick={() => setActiveTab('edit')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    activeTab === 'edit' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  エディター
+                </button>
+                <button
+                  onClick={() => setActiveTab('preview')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    activeTab === 'preview' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  プレビュー
+                </button>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="edit" className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4" />
-                    <span>編集</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="preview" className="flex items-center space-x-2">
-                    <Eye className="h-4 w-4" />
-                    <span>プレビュー</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+            <div className="flex items-center gap-3">
+              {/* 保存状態の表示 */}
+              <div className="text-sm text-gray-500">
+                {lastSaved && !hasUnsavedChanges && (
+                  <span>保存済み</span>
+                )}
+                {hasUnsavedChanges && (
+                  <span className="text-orange-600">未保存</span>
+                )}
+              </div>
               
               <Button
                 onClick={() => handleSubmit('draft')}
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 disabled={isLoading || !title.trim() || !content.trim()}
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
-                <Save className="h-4 w-4 mr-2" />
                 下書き保存
               </Button>
               
@@ -263,9 +309,9 @@ export default function NewArticlePage() {
                 onClick={() => handleSubmit('published')}
                 size="sm"
                 disabled={isLoading || !title.trim() || !content.trim()}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white px-6"
               >
-                公開する
+                投稿する
               </Button>
             </div>
           </div>
@@ -273,130 +319,109 @@ export default function NewArticlePage() {
       </header>
 
       {/* メインコンテンツ */}
-      <main className="max-w-4xl mx-auto py-8 px-4">
+      <main className="min-h-screen bg-white">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsContent value="edit" className="space-y-6">
-            {/* タイトル入力 */}
-            <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-              <Input
-                placeholder="記事のタイトルを入力してください"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={200}
-                className="text-4xl font-bold border-none px-0 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 mb-2"
-              />
-              <p className="text-sm text-gray-500 mb-6">{title.length}/200文字</p>
-              
-              {/* 要約入力 */}
-              <div className="space-y-2">
-                <Label htmlFor="excerpt" className="text-sm font-medium text-gray-700">
-                  記事の要約（検索結果などで表示されます）
-                </Label>
-                <Input
-                  id="excerpt"
-                  placeholder="記事の内容を簡潔に要約してください（150文字程度）"
-                  value={excerpt}
-                  onChange={(e) => setExcerpt(e.target.value)}
-                  maxLength={300}
-                  className="border-gray-300"
-                />
-                <p className="text-sm text-gray-500">{excerpt.length}/300文字</p>
-              </div>
-            </div>
-
-            {/* エディタ */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <NoteEditor
-                content={content}
-                onUpdate={setContent}
-                placeholder="記事の内容を書いてみましょう..."
-                characterLimit={10000}
-              />
-            </div>
-
-            {/* 記事設定 */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 space-y-6">
-              <h3 className="text-lg font-semibold text-gray-900">記事設定</h3>
-              
-              {/* タグ設定 */}
-              <div className="space-y-3">
-                <Label htmlFor="tags" className="text-sm font-medium text-gray-700">
-                  タグ（記事の分類に使用されます）
-                </Label>
-                <Input
-                  id="tags"
-                  placeholder="タグをカンマ区切りで入力（例: 進路相談, 親子関係, 大学生活）"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  className="border-gray-300"
-                />
-                <div className="flex flex-wrap gap-2">
-                  {tags.split(',').map(tag => tag.trim()).filter(Boolean).map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="px-3 py-1">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* プレミアム設定 */}
-              <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <TabsContent value="edit" className="mt-0">
+            {/* タイトルと記事本文（note風レイアウト） */}
+            <div className="bg-white">
+              <div className="max-w-3xl mx-auto px-8 pt-8 pb-24">
+                {/* タイトル入力 */}
                 <input
-                  type="checkbox"
-                  id="premium"
-                  checked={isPremium}
-                  onChange={(e) => setIsPremium(e.target.checked)}
-                  className="mt-1 rounded border-gray-300"
+                  placeholder="タイトル"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={200}
+                  className="w-full text-3xl font-bold border-none outline-none placeholder:text-gray-300 mb-6"
+                  style={{ fontSize: '28px', lineHeight: '1.4', color: '#222' }}
                 />
-                <div className="flex-1">
-                  <Label htmlFor="premium" className="flex items-center space-x-2 cursor-pointer">
-                    <span className="font-medium text-gray-900">プレミアム記事として設定</span>
-                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
-                      有料会員限定
-                    </Badge>
-                  </Label>
-                  <p className="text-sm text-gray-600 mt-1">
-                    プレミアム記事は有料会員のみが閲覧できます。より詳細で価値の高い内容に適用してください。
-                  </p>
+                
+                {/* エディタ */}
+                <NoteEditor
+                  content={content}
+                  onUpdate={setContent}
+                  placeholder="本文を書く"
+                  characterLimit={10000}
+                />
+                
+                {/* 記事設定（下部に配置） */}
+                <div className="mt-16 space-y-8">
+                  {/* 要約入力 */}
+                  <div className="pb-8 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="excerpt" className="text-sm font-medium text-gray-700">
+                        記事の説明
+                      </Label>
+                      <Button
+                        type="button"
+                        onClick={generateExcerpt}
+                        disabled={isGeneratingExcerpt || !title || !content}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs flex items-center gap-1"
+                      >
+                        {isGeneratingExcerpt ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                            生成中...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-3 w-3" />
+                            説明を生成
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <textarea
+                      id="excerpt"
+                      placeholder="この記事の概要を入力（検索結果に表示されます）"
+                      value={excerpt}
+                      onChange={(e) => setExcerpt(e.target.value)}
+                      maxLength={300}
+                      className="w-full p-3 border border-gray-200 rounded-lg resize-none outline-none focus:border-gray-400 text-sm"
+                      rows={3}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{excerpt.length}/300</p>
+                  </div>
+                  
+                  {/* タグ設定 */}
+                  <div className="pb-8 border-b border-gray-200">
+                    <Label htmlFor="tags" className="text-sm font-medium text-gray-700 mb-2 block">
+                      タグ
+                    </Label>
+                    <Input
+                      id="tags"
+                      placeholder="タグをカンマ区切りで入力"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      className="border-gray-200 focus:border-gray-400 text-sm"
+                    />
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {tags.split(',').map(tag => tag.trim()).filter(Boolean).map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="px-3 py-1 bg-gray-100 text-gray-700">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  
                 </div>
               </div>
             </div>
 
-            {/* AIアシスタント */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
-              <div className="flex items-start space-x-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Sparkles className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    AIアシスタントで記事作成
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    AIとの対話を通じて体験を整理し、読者に響く記事を自動生成できます。
-                  </p>
-                  <Link href="/dashboard/interview">
-                    <Button variant="outline" className="bg-white hover:bg-gray-50">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      AIインタビューを開始
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
           </TabsContent>
 
-          <TabsContent value="preview" className="space-y-6">
-            {/* プレビュー表示 */}
-            <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-              <div className="max-w-none prose prose-lg">
-                <h1 className="text-4xl font-bold mb-4">{title || 'タイトルを入力してください'}</h1>
-                {excerpt && (
-                  <p className="text-xl text-gray-600 mb-8 font-medium">{excerpt}</p>
-                )}
+          <TabsContent value="preview" className="mt-0">
+            {/* プレビュー表示（note風） */}
+            <div className="bg-white min-h-screen">
+              <div className="max-w-3xl mx-auto px-8 pt-8 pb-24">
+                <h1 className="text-3xl font-bold mb-6" style={{ fontSize: '28px', lineHeight: '1.4', color: '#222' }}>
+                  {title || 'タイトル'}
+                </h1>
                 <div 
+                  className="note-preview-content"
                   dangerouslySetInnerHTML={{ 
-                    __html: content || '<p class="text-gray-400">記事の内容がここに表示されます...</p>' 
+                    __html: content || '<p style="color: #999;">本文を書く</p>' 
                   }} 
                 />
               </div>
@@ -404,6 +429,95 @@ export default function NewArticlePage() {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* プレビュー用CSS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .note-preview-content {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+          color: #333;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        
+        .note-preview-content h1 {
+          font-size: 30px;
+          font-weight: 700;
+          margin: 40px 0 20px 0;
+          line-height: 1.4;
+          color: #222;
+        }
+        
+        .note-preview-content h2 {
+          font-size: 24px;
+          font-weight: 700;
+          margin: 36px 0 16px 0;
+          line-height: 1.4;
+          color: #222;
+        }
+        
+        .note-preview-content h3 {
+          font-size: 20px;
+          font-weight: 700;
+          margin: 32px 0 12px 0;
+          line-height: 1.5;
+          color: #222;
+        }
+        
+        .note-preview-content p {
+          margin: 20px 0;
+          line-height: 1.8;
+          font-size: 16px;
+          color: #333;
+        }
+        
+        .note-preview-content ul,
+        .note-preview-content ol {
+          padding-left: 30px;
+          margin: 20px 0;
+        }
+        
+        .note-preview-content li {
+          margin: 8px 0;
+          line-height: 1.8;
+        }
+        
+        .note-preview-content strong {
+          font-weight: 700;
+          color: #222;
+        }
+        
+        .note-preview-content a {
+          color: #03a9f4;
+          text-decoration: none;
+          border-bottom: 1px solid #03a9f4;
+        }
+        
+        .note-preview-content a:hover {
+          color: #0288d1;
+          border-bottom-color: #0288d1;
+        }
+        
+        .note-preview-content blockquote {
+          border-left: 3px solid #333;
+          padding-left: 20px;
+          margin: 20px 0;
+          font-style: normal;
+          color: #666;
+        }
+        
+        .note-preview-content img {
+          max-width: 100%;
+          height: auto;
+          margin: 30px auto;
+          display: block;
+        }
+        
+        .note-preview-content hr {
+          border: none;
+          border-top: 1px solid #ddd;
+          margin: 40px 0;
+        }
+      ` }} />
     </div>
   )
 }

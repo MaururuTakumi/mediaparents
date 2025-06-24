@@ -8,11 +8,11 @@ interface WriterCardProps {
     id: string
     name: string
     university: string
-    faculty: string
-    grade: number
-    profile_image_url?: string
-    is_certified: boolean
-    tags?: string[]
+    faculty?: string
+    grade?: number
+    avatar_url?: string
+    is_verified: boolean
+    bio?: string
   }
 }
 
@@ -22,27 +22,25 @@ export default function WriterCard({ writer }: WriterCardProps) {
       <Link href={`/writers/${writer.id}`}>
         <CardHeader className="text-center pb-2">
           <Avatar className="h-24 w-24 mx-auto mb-3">
-            <AvatarImage src={writer.profile_image_url} />
+            <AvatarImage src={writer.avatar_url} />
             <AvatarFallback className="text-2xl">{writer.name[0]}</AvatarFallback>
           </Avatar>
           <h3 className="font-semibold text-lg">{writer.name}</h3>
-          {writer.is_certified && (
-            <Badge className="mx-auto mt-2">Oyakology認定メンター</Badge>
+          {writer.is_verified && (
+            <Badge className="mx-auto mt-2">認証済みライター</Badge>
           )}
         </CardHeader>
         <CardContent className="text-center text-sm space-y-1">
           <p className="text-muted-foreground">{writer.university}</p>
-          <p className="text-muted-foreground">
-            {writer.faculty} {writer.grade}年生
-          </p>
-          {writer.tags && writer.tags.length > 0 && (
-            <div className="flex gap-1 flex-wrap justify-center mt-3">
-              {writer.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+          {(writer.faculty || writer.grade) && (
+            <p className="text-muted-foreground">
+              {writer.faculty} {writer.grade ? `${writer.grade}年生` : ''}
+            </p>
+          )}
+          {writer.bio && (
+            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+              {writer.bio}
+            </p>
           )}
         </CardContent>
       </Link>

@@ -47,7 +47,7 @@ async function getWriters(searchParams: SearchParams) {
       query = query.or(`name.ilike.%${searchParams.search}%,university.ilike.%${searchParams.search}%,faculty.ilike.%${searchParams.search}%`)
     }
 
-    if (searchParams.university) {
+    if (searchParams.university && searchParams.university !== 'all') {
       query = query.eq('university', searchParams.university)
     }
 
@@ -184,12 +184,12 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                 </div>
 
                 {/* 大学フィルター */}
-                <Select name="university" defaultValue={searchParams.university}>
+                <Select name="university" defaultValue={searchParams.university || "all"}>
                   <SelectTrigger className="w-full lg:w-48">
                     <SelectValue placeholder="大学で絞り込み" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">すべての大学</SelectItem>
+                    <SelectItem value="all">すべての大学</SelectItem>
                     {universities.map((university) => (
                       <SelectItem key={university} value={university}>
                         {university}
@@ -199,12 +199,12 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                 </Select>
 
                 {/* 認証ステータスフィルター */}
-                <Select name="verified" defaultValue={searchParams.verified}>
+                <Select name="verified" defaultValue={searchParams.verified || "all"}>
                   <SelectTrigger className="w-full lg:w-40">
                     <SelectValue placeholder="認証状態" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">すべて</SelectItem>
+                    <SelectItem value="all">すべて</SelectItem>
                     <SelectItem value="true">認証済み</SelectItem>
                   </SelectContent>
                 </Select>
@@ -223,7 +223,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
               </div>
 
               {/* 適用されているフィルターの表示 */}
-              {(searchParams.search || searchParams.university || searchParams.verified) && (
+              {(searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true') && (
                 <div className="flex flex-wrap gap-2">
                   <span className="text-sm text-gray-600">フィルター:</span>
                   {searchParams.search && (
@@ -231,7 +231,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                       検索: {searchParams.search}
                     </Badge>
                   )}
-                  {searchParams.university && (
+                  {searchParams.university && searchParams.university !== 'all' && (
                     <Badge variant="secondary">
                       大学: {searchParams.university}
                     </Badge>
@@ -274,19 +274,19 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                {searchParams.search || searchParams.university || searchParams.verified 
+                {searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true'
                   ? '条件に一致するライターが見つかりませんでした' 
                   : 'ライターが登録されていません'
                 }
               </h3>
               <p className="text-gray-600 mb-8">
-                {searchParams.search || searchParams.university || searchParams.verified
+                {searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true'
                   ? '検索条件を変更してお試しください。'
                   : '現在、ライターの登録準備中です。しばらくお待ちください。'
                 }
               </p>
               <div className="space-x-4">
-                {(searchParams.search || searchParams.university || searchParams.verified) && (
+                {(searchParams.search || (searchParams.university && searchParams.university !== 'all') || searchParams.verified === 'true') && (
                   <Button asChild variant="outline">
                     <a href="/writers">すべてのライターを見る</a>
                   </Button>
@@ -319,7 +319,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                     ライター登録
                   </a>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+                <Button asChild size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
                   <a href="/articles">記事を読む</a>
                 </Button>
               </div>

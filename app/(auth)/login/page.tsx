@@ -35,14 +35,18 @@ export default function LoginPage() {
     setError(null)
 
     try {
+      console.log('Starting login process...')
+      
       // ログイン処理
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
 
+      console.log('Auth response:', { data, authError })
+
       if (authError) {
-        console.error('Login error:', authError)
+        console.error('Login error details:', authError)
         throw new Error('メールアドレスまたはパスワードが正しくありません')
       }
 
@@ -50,38 +54,39 @@ export default function LoginPage() {
         throw new Error('ログインに失敗しました')
       }
 
-      // ライター情報の確認（デバッグ情報追加）
-      console.log('Searching for writer with auth_id:', data.user.id)
+      console.log('User authenticated:', data.user.id)
+
+      // 読者としてログイン成功
+      console.log('Login successful, redirecting to home...')
       
-      const { data: writer, error: writerError } = await supabase
-        .from('writers')
-        .select('*')
-        .eq('auth_id', data.user.id)
-        .single()
+      // プロファイルの確認/作成
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          email: data.user.email,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        })
 
-      console.log('Writer query result:', { writer, writerError })
-
-      // 全てのライターを確認（デバッグ用）
-      const { data: allWriters, error: allWritersError } = await supabase
-        .from('writers')
-        .select('*')
-      
-      console.log('All writers in database:', allWriters)
-      console.log('All writers error:', allWritersError)
-
-      if (writerError || !writer) {
-        console.error('Writer not found:', writerError)
-        console.error('User ID we searched for:', data.user.id)
-        throw new Error(`ライター情報が見つかりません。User ID: ${data.user.id}`)
+      if (profileError) {
+        console.error('Profile update error:', profileError)
       }
-
-      // 成功時はダッシュボードへ
-      router.push('/dashboard')
+      
+      // リダイレクト前にローディング状態を解除
+      setIsLoading(false)
+      
+      // 成功メッセージを表示
+      setError(null)
+      
+      // ホームページにリダイレクト
+      console.log('Executing redirect to home...')
+      window.location.href = '/'
 
     } catch (error: any) {
-      console.error('Login error:', error)
+      console.error('Login process error:', error)
       setError(error.message || 'ログインに失敗しました')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -98,17 +103,17 @@ export default function LoginPage() {
         <div className="text-center">
           <LogIn className="mx-auto h-12 w-12 text-blue-600" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            ログイン
+            読者ログイン
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            ダッシュボードにアクセスしてください
+            記事の閲覧やコメント投稿ができます
           </p>
         </div>
 
         {/* Login Form */}
         <Card>
           <CardHeader>
-            <CardTitle>アカウントにログイン</CardTitle>
+            <CardTitle>読者アカウントにログイン</CardTitle>
             <CardDescription>
               メールアドレスとパスワードを入力してください
             </CardDescription>
@@ -176,11 +181,21 @@ export default function LoginPage() {
             </form>
 
             {/* Register Link */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center border-t pt-6">
               <p className="text-sm text-gray-600">
                 アカウントをお持ちでないですか？{' '}
                 <Link href="/register" className="text-blue-600 hover:text-blue-500 font-medium">
                   新規登録
+                </Link>
+              </p>
+            </div>
+
+            {/* Writer Login Link */}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                ライターとしてログインしたい方は
+                <Link href="/writer/login" className="text-blue-600 hover:text-blue-500 ml-1">
+                  こちら
                 </Link>
               </p>
             </div>

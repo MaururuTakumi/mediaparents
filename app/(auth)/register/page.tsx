@@ -5,11 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { createClient } from '@/lib/supabase/client'
-import { AlertCircle, GraduationCap, User, Mail, Lock } from 'lucide-react'
+import { AlertCircle, User, Mail, Lock, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 
 export default function RegisterPage() {
@@ -20,11 +19,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    name: '',
-    university: '',
-    faculty: '',
-    grade: '',
-    bio: ''
+    name: ''
   })
   
   const [errors, setErrors] = useState<string[]>([])
@@ -38,13 +33,6 @@ export default function RegisterPage() {
     if (formData.password.length < 6) newErrors.push('パスワードは6文字以上で入力してください')
     if (formData.password !== formData.confirmPassword) newErrors.push('パスワードが一致しません')
     if (!formData.name) newErrors.push('お名前は必須です')
-    if (!formData.university) newErrors.push('大学名は必須です')
-    if (!formData.grade) newErrors.push('学年は必須です')
-    
-    const grade = parseInt(formData.grade)
-    if (isNaN(grade) || grade < 1 || grade > 6) {
-      newErrors.push('学年は1〜6の数字で入力してください')
-    }
 
     setErrors(newErrors)
     return newErrors.length === 0
@@ -58,23 +46,32 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // 1. ユーザー登録（メール確認なしのオプション付き）
+      // 1. ユーザー登録
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            name: formData.name,
-            university: formData.university,
-            faculty: formData.faculty,
-            grade: formData.grade,
-            bio: formData.bio
+            name: formData.name
           }
         }
       })
 
       if (authError) {
         console.error('Auth error:', authError)
+        
+        // Check if user already exists
+        if (authError.message.toLowerCase().includes('user already registered')) {
+          setErrors(['このメールアドレスは既に登録されています。ログインページからログインしてください。'])
+          setIsLoading(false)
+          
+          // Redirect to login page after 2 seconds
+          setTimeout(() => {
+            router.push('/login')
+          }, 2000)
+          return
+        }
+        
         throw new Error(`認証エラー: ${authError.message}`)
       }
 
@@ -82,40 +79,53 @@ export default function RegisterPage() {
         throw new Error('ユーザー登録に失敗しました')
       }
 
-      // 2. 少し待ってからライター情報を登録
+      // 2. 少し待ってからプロフィールを作成
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      const { data: writerData, error: writerError } = await supabase
-        .from('writers')
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (existingProfile) {
+        console.log('Profile already exists, redirecting to home')
+        router.push('/')
+        return
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
         .insert({
-          auth_id: authData.user.id,
-          name: formData.name,
-          university: formData.university,
-          faculty: formData.faculty || null,
-          grade: parseInt(formData.grade),
-          bio: formData.bio || null,
-          verification_status: 'pending',
-          is_verified: false,
+          id: authData.user.id,
+          email: formData.email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
 
-      if (writerError) {
-        console.error('Writer profile creation error:', writerError)
-        console.error('Error details:', {
-          message: writerError.message,
-          details: writerError.details,
-          hint: writerError.hint,
-          code: writerError.code
-        })
-        throw new Error(`プロフィールの作成に失敗しました: ${writerError.message}`)
+      if (profileError) {
+        console.error('Profile creation error:', profileError)
+        
+        // If the error is due to unique constraint, user exists but needs to login
+        if (profileError.code === '23505') {
+          setErrors(['アカウントは既に存在しています。ログインしてください。'])
+          setTimeout(() => {
+            router.push('/login')
+          }, 2000)
+          return
+        }
+        
+        throw new Error(`プロフィールの作成に失敗しました: ${profileError.message}`)
       }
 
-      console.log('Writer profile created successfully:', writerData)
+      console.log('Profile created successfully:', profileData)
 
-      // 3. 成功時の処理 - 直接ダッシュボードに遷移
+      // 3. 成功時の処理 - ホームページに遷移
       setErrors([])
-      alert('登録が完了しました！ダッシュボードへようこそ！')
-      router.push('/dashboard')
+      alert('登録が完了しました！')
+      router.push('/')
 
     } catch (error: any) {
       console.error('Registration error:', error)
@@ -138,12 +148,12 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <GraduationCap className="mx-auto h-12 w-12 text-blue-600" />
+          <BookOpen className="mx-auto h-12 w-12 text-blue-600" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            ライター登録
+            読者アカウント作成
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            あなたの体験を記事として共有しませんか？
+            記事の閲覧やコメント投稿ができます
           </p>
         </div>
 
@@ -152,7 +162,7 @@ export default function RegisterPage() {
           <CardHeader>
             <CardTitle>新規アカウント作成</CardTitle>
             <CardDescription>
-              以下の情報を入力してアカウントを作成してください
+              メールアドレスとパスワードで簡単に登録
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -164,7 +174,14 @@ export default function RegisterPage() {
                   <AlertDescription>
                     <ul className="list-disc list-inside space-y-1">
                       {errors.map((error, index) => (
-                        <li key={index}>{error}</li>
+                        <li key={index}>
+                          {error}
+                          {error.includes('既に登録されています') && (
+                            <Link href="/login" className="ml-2 text-blue-600 hover:text-blue-500 underline">
+                              ログインページへ
+                            </Link>
+                          )}
+                        </li>
                       ))}
                     </ul>
                   </AlertDescription>
@@ -175,7 +192,8 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center space-x-2">
                   <Mail className="h-4 w-4" />
-                  <span>メールアドレス *</span>
+                  <span>メールアドレス</span>
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="email"
@@ -191,7 +209,8 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center space-x-2">
                   <Lock className="h-4 w-4" />
-                  <span>パスワード *</span>
+                  <span>パスワード</span>
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="password"
@@ -207,7 +226,8 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="flex items-center space-x-2">
                   <Lock className="h-4 w-4" />
-                  <span>パスワード確認 *</span>
+                  <span>パスワード（確認）</span>
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="confirmPassword"
@@ -223,68 +243,15 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="name" className="flex items-center space-x-2">
                   <User className="h-4 w-4" />
-                  <span>お名前 *</span>
+                  <span>お名前（ニックネーム可）</span>
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="name"
-                  placeholder="例: 山田太郎"
+                  placeholder="例: 太郎"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   required
-                />
-              </div>
-
-              {/* University */}
-              <div className="space-y-2">
-                <Label htmlFor="university" className="flex items-center space-x-2">
-                  <GraduationCap className="h-4 w-4" />
-                  <span>大学名 *</span>
-                </Label>
-                <Input
-                  id="university"
-                  placeholder="例: 東京大学"
-                  value={formData.university}
-                  onChange={(e) => handleInputChange('university', e.target.value)}
-                  required
-                />
-              </div>
-
-              {/* Faculty */}
-              <div className="space-y-2">
-                <Label htmlFor="faculty">学部・学科</Label>
-                <Input
-                  id="faculty"
-                  placeholder="例: 工学部情報工学科"
-                  value={formData.faculty}
-                  onChange={(e) => handleInputChange('faculty', e.target.value)}
-                />
-              </div>
-
-              {/* Grade */}
-              <div className="space-y-2">
-                <Label htmlFor="grade">学年 *</Label>
-                <Input
-                  id="grade"
-                  type="number"
-                  min="1"
-                  max="6"
-                  placeholder="例: 3"
-                  value={formData.grade}
-                  onChange={(e) => handleInputChange('grade', e.target.value)}
-                  required
-                />
-                <p className="text-sm text-gray-500">1〜6年で入力してください</p>
-              </div>
-
-              {/* Bio */}
-              <div className="space-y-2">
-                <Label htmlFor="bio">自己紹介</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="あなたの経験や関心のあることについて簡単に教えてください"
-                  value={formData.bio}
-                  onChange={(e) => handleInputChange('bio', e.target.value)}
-                  rows={3}
                 />
               </div>
 
@@ -300,32 +267,66 @@ export default function RegisterPage() {
                     <span>登録中...</span>
                   </div>
                 ) : (
-                  'アカウントを作成'
+                  '登録する'
                 )}
               </Button>
             </form>
 
             {/* Login Link */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center border-t pt-6">
               <p className="text-sm text-gray-600">
-                すでにアカウントをお持ちですか？{' '}
+                既にアカウントをお持ちですか？{' '}
                 <Link href="/login" className="text-blue-600 hover:text-blue-500 font-medium">
                   ログイン
                 </Link>
               </p>
             </div>
+
+            {/* Writer Register Link */}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                ライターとして記事を投稿したい方は
+                <Link href="/writer/register" className="text-blue-600 hover:text-blue-500 ml-1">
+                  こちら
+                </Link>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                ※東京大学の学生のみ
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <div className="text-center text-sm text-gray-500">
-          <p>
-            登録することで、
-            <Link href="/terms" className="text-blue-600 hover:text-blue-500">利用規約</Link>
-            および
-            <Link href="/privacy" className="text-blue-600 hover:text-blue-500">プライバシーポリシー</Link>
-            に同意したものとみなされます。
-          </p>
+        {/* Benefits */}
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-4">無料会員でできること</h3>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                すべての無料記事の閲覧
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                プレミアム記事を月3本まで無料で閲覧
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                記事へのコメント投稿
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                お気に入りのライターをフォロー
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Back to Home */}
+        <div className="text-center">
+          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
+            ← トップページに戻る
+          </Link>
         </div>
       </div>
     </div>
