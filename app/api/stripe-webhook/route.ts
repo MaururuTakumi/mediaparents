@@ -1,3 +1,6 @@
+// NOTE: Stripe APIキーが設定されていない場合、このエンドポイントは正常に動作しません
+// 環境変数 STRIPE_SECRET_KEY と STRIPE_WEBHOOK_SECRET を設定してください
+
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
@@ -51,9 +54,9 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               stripe_customer_id: session.customer as string,
               status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-              plan_price: subscription.items.data[0].price.unit_amount! / 100,
+              current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+              current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+              plan_price: (subscription as any).items.data[0].price.unit_amount! / 100,
             });
         }
         break;
@@ -75,8 +78,8 @@ export async function POST(request: NextRequest) {
           .from('subscriptions')
           .update({
             status: subscription.status,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
           })
           .eq('stripe_subscription_id', subscription.id);
         break;
