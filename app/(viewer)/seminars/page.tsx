@@ -249,17 +249,17 @@ export default async function SeminarsPage() {
                     <CardContent>
                       <div className="flex items-center gap-3 mb-4">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={(Array.isArray(seminar.writers) ? seminar.writers[0]?.avatar_url : seminar.writers?.avatar_url) || ''} />
+                          <AvatarImage src={(Array.isArray(seminar.writers) ? seminar.writers[0]?.avatar_url : (seminar.writers as any)?.avatar_url) || ''} />
                           <AvatarFallback>
-                            {(Array.isArray(seminar.writers) ? seminar.writers[0]?.name?.[0] : seminar.writers?.name?.[0]) || 'H'}
+                            {(Array.isArray(seminar.writers) ? seminar.writers[0]?.name?.[0] : (seminar.writers as any)?.name?.[0]) || 'H'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
+                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : (seminar.writers as any)?.name}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.university : seminar.writers?.university}
+                            {Array.isArray(seminar.writers) ? seminar.writers[0]?.university : (seminar.writers as any)?.university}
                           </p>
                         </div>
                       </div>
