@@ -65,7 +65,13 @@ async function getArticles(): Promise<Article[]> {
     return []
   }
 
-  return (data as Article[]) || []
+  // Supabaseの結合クエリの結果を正しい型に変換
+  const articles = data?.map((item: any) => ({
+    ...item,
+    writers: Array.isArray(item.writers) ? item.writers[0] : item.writers
+  })) as Article[]
+  
+  return articles || []
 }
 
 export default async function ArticlesPage() {
