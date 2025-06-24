@@ -16,15 +16,16 @@ import {
   ExternalLink,
   User,
   GraduationCap,
-  Star
+  Star,
+  Users
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 interface WriterDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 async function getWriterDetail(id: string) {
@@ -101,7 +102,8 @@ async function getWriterDetail(id: string) {
 }
 
 export default async function WriterDetailPage({ params }: WriterDetailPageProps) {
-  const data = await getWriterDetail(params.id)
+  const { id } = await params
+  const data = await getWriterDetail(id)
   
   if (!data) {
     notFound()
@@ -322,7 +324,8 @@ export default async function WriterDetailPage({ params }: WriterDetailPageProps
 }
 
 export async function generateMetadata({ params }: WriterDetailPageProps) {
-  const data = await getWriterDetail(params.id)
+  const { id } = await params
+  const data = await getWriterDetail(id)
   
   if (!data) {
     return {

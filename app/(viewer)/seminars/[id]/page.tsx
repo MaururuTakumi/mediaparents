@@ -23,9 +23,9 @@ import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 interface SeminarDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 async function getSeminarDetail(id: string) {
@@ -88,7 +88,8 @@ async function getSeminarDetail(id: string) {
 }
 
 export default async function SeminarDetailPage({ params }: SeminarDetailPageProps) {
-  const data = await getSeminarDetail(params.id)
+  const { id } = await params
+  const data = await getSeminarDetail(id)
   
   if (!data) {
     notFound()
@@ -108,14 +109,14 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      redirect(`/login?redirect=/seminars/${params.id}`)
+      redirect(`/login?redirect=/seminars/${id}`)
     }
 
     // 参加登録処理
     const { error } = await supabase
       .from('seminar_participants')
       .insert({
-        seminar_id: params.id,
+        seminar_id: id,
         user_id: user.id
       })
 
@@ -125,7 +126,7 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
     }
 
     // ページをリロード
-    redirect(`/seminars/${params.id}`)
+    redirect(`/seminars/${id}`)
   }
 
   return (
@@ -371,7 +372,8 @@ export default async function SeminarDetailPage({ params }: SeminarDetailPagePro
 }
 
 export async function generateMetadata({ params }: SeminarDetailPageProps) {
-  const data = await getSeminarDetail(params.id)
+  const { id } = await params
+  const data = await getSeminarDetail(id)
   
   if (!data) {
     return {

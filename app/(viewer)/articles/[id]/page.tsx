@@ -36,9 +36,9 @@ interface Article {
 }
 
 interface ArticlePageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 async function getArticle(id: string): Promise<Article | null> {
@@ -107,7 +107,8 @@ async function incrementViewCount(articleId: string) {
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const article = await getArticle(params.id)
+  const { id } = await params
+  const article = await getArticle(id)
 
   if (!article) {
     notFound()
