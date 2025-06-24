@@ -245,9 +245,7 @@ export default async function WriterDetailPage({ params }: WriterDetailPageProps
                       author: {
                         id: writer.id,
                         name: writer.name,
-                        avatar_url: writer.avatar_url,
-                        university: writer.university,
-                        is_verified: writer.is_verified
+                        profile_image_url: writer.avatar_url
                       }
                     }} 
                   />
