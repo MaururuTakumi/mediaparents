@@ -6,6 +6,22 @@ import SeminarCard from '@/components/seminar-card'
 import Link from 'next/link'
 import { ArrowRight, Sparkles, Users, BookOpen } from 'lucide-react'
 
+interface SeminarWithWriter {
+  id: string
+  title: string
+  description?: string
+  scheduled_at: string
+  duration_minutes: number
+  price: number
+  max_participants: number
+  writers: {
+    id: string
+    name: string
+    avatar_url?: string
+    university: string
+  } | null
+}
+
 // データベースからデータを取得する関数
 async function getHomePageData() {
   const supabase = await createClient()
@@ -96,7 +112,7 @@ async function getHomePageData() {
       popularArticles: popularArticles || [],
       latestArticles: latestArticles || [],
       featuredWriters: featuredWriters || [],
-      upcomingSeminars: upcomingSeminars || []
+      upcomingSeminars: (upcomingSeminars as SeminarWithWriter[]) || []
     }
   } catch (error) {
     console.error('Error fetching home page data:', error)
@@ -199,7 +215,7 @@ export default async function Home() {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">
-                          {Array.isArray(seminar.writers) ? seminar.writers[0]?.name : seminar.writers?.name}
+                          {seminar.writers?.name}
                         </span>
                         <span className="text-xs font-medium text-blue-600">
                           ¥{seminar.price?.toLocaleString()}
