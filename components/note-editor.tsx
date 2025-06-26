@@ -1,15 +1,15 @@
 'use client'
 
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
+import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
+import Typography from '@tiptap/extension-typography'
 import { Extension } from '@tiptap/core'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Bold,
@@ -22,56 +22,173 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   Plus,
+  Heading1,
   Heading2,
   Heading3,
   Minus,
-  X,
-  Type
+  Type,
+  ChevronDown,
+  Trash2,
+  Save,
+  Check
 } from 'lucide-react'
 
-// カスタム拡張：Enterキーで見出しをリセット
-const ResetHeadingOnEnter = Extension.create({
-  name: 'resetHeadingOnEnter',
+// カスタム拡張：改善された見出し動作
+const ImprovedHeadings = Extension.create({
+  name: 'improvedHeadings',
   
   addKeyboardShortcuts() {
     return {
+      // Enter: 見出しの最後で押すと段落に戻る
       'Enter': ({ editor }) => {
-        const { $from, $to } = editor.state.selection
-        const node = $from.node()
+        const { $from } = editor.state.selection
+        const node = $from.parent
         
-        // 見出しの中でEnterが押された場合
         if (node.type.name.startsWith('heading')) {
-          // 現在の位置が見出しの最後の場合
-          if ($from.pos === $to.pos && $from.parentOffset === node.content.size) {
-            // 通常の段落を挿入
-            return editor.commands.insertContent('<p></p>')
+          const endOfNode = $from.end() - 1
+          const isAtEnd = $from.pos === endOfNode
+          
+          if (isAtEnd || node.content.size === 0) {
+            // 見出しの最後または空の見出しで、新しい段落を作成
+            return editor
+              .chain()
+              .insertContentAt($from.end(), { type: 'paragraph' })
+              .focus($from.end() + 1)
+              .run()
           }
         }
         
         return false
       },
+      
+      // Shift+Enter: 見出し内で改行
+      'Shift-Enter': ({ editor }) => {
+        const { $from } = editor.state.selection
+        const node = $from.parent
+        
+        if (node.type.name.startsWith('heading')) {
+          return editor.commands.insertContent('<br>')
+        }
+        
+        return false
+      },
+      
+      // Backspace: 見出しの先頭で押すと段落に戻る
+      'Backspace': ({ editor }) => {
+        const { $from, empty } = editor.state.selection
+        const node = $from.parent
+        
+        if (node.type.name.startsWith('heading') && empty) {
+          const isAtStart = $from.parentOffset === 0
+          
+          if (isAtStart) {
+            if (node.content.size === 0) {
+              // 空の見出しを削除
+              return editor.commands.deleteNode('heading')
+            } else {
+              // 見出しを段落に変換
+              return editor.commands.setParagraph()
+            }
+          }
+        }
+        
+        return false
+      },
+      
+      // ショートカットキー
+      'Mod-Alt-1': ({ editor }) => editor.commands.toggleHeading({ level: 1 }),
+      'Mod-Alt-2': ({ editor }) => editor.commands.toggleHeading({ level: 2 }),
+      'Mod-Alt-3': ({ editor }) => editor.commands.toggleHeading({ level: 3 }),
+      'Mod-Alt-0': ({ editor }) => editor.commands.setParagraph(),
+      'Mod-b': ({ editor }) => editor.commands.toggleBold(),
+      'Mod-i': ({ editor }) => editor.commands.toggleItalic(),
+      'Mod-k': ({ editor }) => {
+        const previousUrl = editor.getAttributes('link').href
+        const url = window.prompt('リンクURLを入力してください:', previousUrl || 'https://')
+        
+        if (url === null) {
+          return false
+        }
+        
+        if (url === '') {
+          editor.chain().focus().extendMarkRange('link').unsetLink().run()
+          return true
+        }
+        
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+        return true
+      },
     }
   },
 })
 
+// マークダウンショートカット拡張
+const MarkdownShortcuts = Extension.create({
+  name: 'markdownShortcuts',
+  
+  addInputRules() {
+    return [
+      // 見出しの自動変換
+      {
+        find: /^(#{1,3})\s$/,
+        handler: ({ state, range, match }) => {
+          const level = match[1].length as 1 | 2 | 3
+          this.editor.chain()
+            .deleteRange(range)
+            .setHeading({ level })
+            .run()
+        },
+      },
+      // 箇条書きの自動変換
+      {
+        find: /^[-*]\s$/,
+        handler: ({ state, range }) => {
+          this.editor.chain()
+            .deleteRange(range)
+            .toggleBulletList()
+            .run()
+        },
+      },
+      // 番号付きリストの自動変換
+      {
+        find: /^1\.\s$/,
+        handler: ({ state, range }) => {
+          this.editor.chain()
+            .deleteRange(range)
+            .toggleOrderedList()
+            .run()
+        },
+      },
+    ]
+  },
+})
+
 interface NoteEditorProps {
+  title?: string
   content?: string
+  onTitleChange?: (title: string) => void
   onUpdate?: (content: string) => void
+  onSave?: () => void
   placeholder?: string
   characterLimit?: number
   className?: string
 }
 
 export default function NoteEditor({
+  title = '',
   content = '',
+  onTitleChange,
   onUpdate,
-  placeholder = '本文を書く',
-  characterLimit = 10000,
+  onSave,
+  placeholder = '本文を入力...',
+  characterLimit = 50000,
   className = ''
 }: NoteEditorProps) {
+  const [currentTitle, setCurrentTitle] = useState(title)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [selectedStyle, setSelectedStyle] = useState('本文')
   const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [plusButtonPosition, setPlusButtonPosition] = useState(0)
-  const editorRef = useRef<HTMLDivElement>(null)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
 
   const editor = useEditor({
     extensions: [
@@ -80,18 +197,21 @@ export default function NoteEditor({
           levels: [1, 2, 3]
         }
       }),
-      ResetHeadingOnEnter,
+      ImprovedHeadings,
+      MarkdownShortcuts,
+      Typography,
       Image.configure({
         HTMLAttributes: {
-          class: 'max-w-full h-auto my-4',
+          class: 'max-w-full h-auto my-6 mx-auto rounded-lg',
         },
         inline: false,
         allowBase64: true,
       }),
       Link.configure({
         openOnClick: false,
+        autolink: true,
         HTMLAttributes: {
-          class: 'text-blue-600 hover:text-blue-800 underline',
+          class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
         },
       }),
       Placeholder.configure({
@@ -107,7 +227,7 @@ export default function NoteEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'focus:outline-none min-h-[500px] py-8 pr-8',
+        class: 'focus:outline-none min-h-[500px] py-4',
       },
       handleDrop: (view, event, slice, moved) => {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
@@ -152,42 +272,69 @@ export default function NoteEditor({
     onUpdate: ({ editor }) => {
       const html = editor.getHTML()
       onUpdate?.(html)
-    },
-    onSelectionUpdate: ({ editor }) => {
-      updatePlusButtonPosition()
+      
+      // 自動保存
+      setSaveStatus('unsaved')
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('saving')
+        onSave?.()
+        setTimeout(() => setSaveStatus('saved'), 500)
+      }, 3000)
     },
   })
 
-  // カーソル位置に基づいて+ボタンの位置を更新
-  const updatePlusButtonPosition = useCallback(() => {
-    if (!editor || !editorRef.current) return
+  // エディタの選択状態に応じてスタイルセレクタを更新
+  useEffect(() => {
+    if (!editor) return
 
-    // 現在の選択範囲を取得
-    const { from } = editor.state.selection
-    const coords = editor.view.coordsAtPos(from)
-    const editorRect = editorRef.current.getBoundingClientRect()
-    
-    // エディタの上端からの相対位置を計算
-    const relativeTop = coords.top - editorRect.top
-    
-    // 行の高さを考慮して位置を調整
-    setPlusButtonPosition(Math.max(0, relativeTop - 5))
+    const updateSelectedStyle = () => {
+      if (editor.isActive('heading', { level: 1 })) {
+        setSelectedStyle('大見出し')
+      } else if (editor.isActive('heading', { level: 2 })) {
+        setSelectedStyle('中見出し')
+      } else if (editor.isActive('heading', { level: 3 })) {
+        setSelectedStyle('小見出し')
+      } else {
+        setSelectedStyle('本文')
+      }
+    }
+
+    editor.on('selectionUpdate', updateSelectedStyle)
+    editor.on('update', updateSelectedStyle)
+
+    return () => {
+      editor.off('selectionUpdate', updateSelectedStyle)
+      editor.off('update', updateSelectedStyle)
+    }
   }, [editor])
 
   // contentが変更されたときにエディタを更新
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      console.log('🔄 Updating editor content from props...')
       editor.commands.setContent(content)
     }
   }, [content, editor])
 
-  // エディタが初期化されたときに位置を更新
-  useEffect(() => {
-    if (editor) {
-      updatePlusButtonPosition()
+  // タイトルの変更ハンドラー
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value
+    setCurrentTitle(newTitle)
+    onTitleChange?.(newTitle)
+    
+    // タイトル変更時も自動保存
+    setSaveStatus('unsaved')
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
     }
-  }, [editor, updatePlusButtonPosition])
+    saveTimeoutRef.current = setTimeout(() => {
+      setSaveStatus('saving')
+      onSave?.()
+      setTimeout(() => setSaveStatus('saved'), 500)
+    }, 3000)
+  }, [onTitleChange, onSave])
 
   const addImage = useCallback(() => {
     const input = document.createElement('input')
@@ -236,283 +383,448 @@ export default function NoteEditor({
   const wordCount = editor.storage.characterCount.words()
 
   return (
-    <div className={`w-full ${className}`}>
-      {/* エディタエリア */}
-      <div className="relative" ref={editorRef}>
-        {/* note.com風の動的＋ボタン */}
-        <div 
-          className="absolute left-0 z-10 transition-all duration-150 ease-out"
-          style={{ top: `${plusButtonPosition}px` }}
+    <div className={`w-full max-w-[700px] mx-auto px-4 ${className}`}>
+      {/* 保存状態インジケーター */}
+      <div className="fixed top-4 right-4 flex items-center space-x-2 text-sm">
+        {saveStatus === 'saving' && (
+          <>
+            <Save className="h-4 w-4 animate-pulse" />
+            <span className="text-gray-500">保存中...</span>
+          </>
+        )}
+        {saveStatus === 'saved' && (
+          <>
+            <Check className="h-4 w-4 text-green-500" />
+            <span className="text-gray-500">保存済み</span>
+          </>
+        )}
+      </div>
+
+      {/* タイトル入力欄 */}
+      <input
+        type="text"
+        value={currentTitle}
+        onChange={handleTitleChange}
+        placeholder="タイトル"
+        className="w-full text-3xl md:text-4xl font-bold border-none outline-none placeholder-gray-300 mb-8 bg-transparent"
+      />
+
+      {/* ツールバー */}
+      <div className="sticky top-0 bg-white z-20 border-b border-gray-200 -mx-4 px-4 py-2">
+        <div className="flex items-center space-x-1 flex-wrap">
+          {/* スタイルセレクター */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 px-3">
+                <span className="text-sm">{selectedStyle}</span>
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>
+                <Type className="h-4 w-4 mr-2" />
+                本文
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+                <Heading1 className="h-4 w-4 mr-2" />
+                大見出し
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+                <Heading2 className="h-4 w-4 mr-2" />
+                中見出し
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+                <Heading3 className="h-4 w-4 mr-2" />
+                小見出し
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+          {/* テキスト装飾ボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-gray-100' : ''}`}
+            title="太字 (Ctrl+B)"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('strike') ? 'bg-gray-100' : ''}`}
+            title="取り消し線"
+          >
+            <Strikethrough className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+          {/* リストボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('bulletList') ? 'bg-gray-100' : ''}`}
+            title="箇条書きリスト"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('orderedList') ? 'bg-gray-100' : ''}`}
+            title="番号付きリスト"
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+          {/* その他のボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={setLink}
+            className={`h-8 w-8 p-0 ${editor.isActive('link') ? 'bg-gray-100' : ''}`}
+            title="リンク (Ctrl+K)"
+          >
+            <LinkIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('blockquote') ? 'bg-gray-100' : ''}`}
+            title="引用"
+          >
+            <Quote className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('code') ? 'bg-gray-100' : ''}`}
+            title="コード"
+          >
+            <Code className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+          {/* 削除ボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().deleteSelection().run()}
+            className="h-8 w-8 p-0 ml-auto"
+            title="削除"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* FloatingMenu - 新しい行で表示される+ボタン */}
+      {editor && (
+        <FloatingMenu 
+          editor={editor} 
+          tippyOptions={{ 
+            duration: 100,
+            placement: 'left-start',
+            offset: [0, 15],
+            zIndex: 20
+          }}
+          className="floating-menu-plus"
         >
-            <DropdownMenu open={showPlusMenu} onOpenChange={setShowPlusMenu}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-9 h-9 p-0 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center"
-                >
-                  {showPlusMenu ? <X className="h-4 w-4 text-gray-500" /> : <Plus className="h-4 w-4 text-gray-400" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" className="w-48" sideOffset={8}>
-                <DropdownMenuItem 
-                  onClick={() => {
-                    editor?.chain().focus().setParagraph().run()
-                    setShowPlusMenu(false)
-                  }}
-                  className="flex items-center space-x-3 p-3"
-                >
-                  <Type className="h-4 w-4" />
-                  <span>本文</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => {
-                    editor?.chain().focus().toggleHeading({ level: 2 }).run()
-                    setShowPlusMenu(false)
-                  }}
-                  className="flex items-center space-x-3 p-3"
-                >
-                  <Heading2 className="h-4 w-4" />
-                  <span>見出し（大）</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => {
-                    editor?.chain().focus().toggleHeading({ level: 3 }).run()
-                    setShowPlusMenu(false)
-                  }}
-                  className="flex items-center space-x-3 p-3"
-                >
-                  <Heading3 className="h-4 w-4" />
-                  <span>見出し（中）</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+          <div className="relative">
+            <button 
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all"
+              onClick={() => setShowPlusMenu(!showPlusMenu)}
+              onBlur={(e) => {
+                // メニュー内のクリックでない場合のみ閉じる
+                if (!e.currentTarget.parentElement?.contains(e.relatedTarget)) {
+                  setTimeout(() => setShowPlusMenu(false), 200)
+                }
+              }}
+            >
+              <Plus className="h-4 w-4 text-gray-500" />
+            </button>
+            
+            {showPlusMenu && (
+              <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
                     addImage()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <ImageIcon className="h-4 w-4" />
-                  <span>画像</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  画像
+                </button>
+                <div className="h-px bg-gray-200 my-1" />
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    editor?.chain().focus().toggleBulletList().run()
+                    editor.chain().focus().toggleHeading({ level: 2 }).run()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <List className="h-4 w-4" />
-                  <span>箇条書き</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+                  <Heading2 className="h-4 w-4 mr-2" />
+                  大見出し
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    editor?.chain().focus().toggleOrderedList().run()
+                    editor.chain().focus().toggleHeading({ level: 3 }).run()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <ListOrdered className="h-4 w-4" />
-                  <span>番号付きリスト</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+                  <Heading3 className="h-4 w-4 mr-2" />
+                  小見出し
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    editor?.chain().focus().toggleBlockquote().run()
+                    editor.chain().focus().toggleBulletList().run()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <Quote className="h-4 w-4" />
-                  <span>引用</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+                  <List className="h-4 w-4 mr-2" />
+                  箇条書きリスト
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    editor?.chain().focus().toggleCodeBlock().run()
+                    editor.chain().focus().toggleOrderedList().run()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <Code className="h-4 w-4" />
-                  <span>コードブロック</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
+                  <ListOrdered className="h-4 w-4 mr-2" />
+                  番号付きリスト
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    editor?.chain().focus().setHorizontalRule().run()
+                    editor.chain().focus().toggleBlockquote().run()
                     setShowPlusMenu(false)
                   }}
-                  className="flex items-center space-x-3 p-3"
                 >
-                  <Minus className="h-4 w-4" />
-                  <span>区切り線</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-
-        {/* Bubble Menu - テキスト選択時に表示されるツールバー */}
-        {editor && (
-          <BubbleMenu 
-            editor={editor} 
-            tippyOptions={{ duration: 100 }}
-            className="bubble-menu"
-          >
-            <div className="bg-gray-900 rounded-lg shadow-lg p-1 flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`p-1.5 h-8 ${editor.isActive('bold') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
-              >
-                <Bold className="h-4 w-4 text-white" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`p-1.5 h-8 ${editor.isActive('italic') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
-              >
-                <Italic className="h-4 w-4 text-white" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                className={`p-1.5 h-8 ${editor.isActive('strike') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
-              >
-                <Strikethrough className="h-4 w-4 text-white" />
-              </Button>
-              <div className="w-px h-6 bg-gray-600 mx-1" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={setLink}
-                className={`p-1.5 h-8 ${editor.isActive('link') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
-              >
-                <LinkIcon className="h-4 w-4 text-white" />
-              </Button>
-            </div>
-          </BubbleMenu>
-        )}
-
-        {/* メインエディタ */}
-        <div className="bg-white min-h-[600px] pl-16 pr-4">
-          <EditorContent 
-            editor={editor} 
-            className="note-editor-content"
-          />
-        </div>
-
-        {/* フッター統計 */}
-        <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
-          <div className="flex space-x-4">
-            <span>{characterCount} 文字</span>
-            <span>{wordCount} 単語</span>
-          </div>
-          <div className="flex space-x-2">
-            {characterCount > characterLimit * 0.8 && (
-              <span className={characterCount > characterLimit ? 'text-red-500' : 'text-orange-500'}>
-                {characterLimit - characterCount} 文字残り
-              </span>
+                  <Quote className="h-4 w-4 mr-2" />
+                  引用
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
+                  onClick={() => {
+                    editor.chain().focus().toggleCodeBlock().run()
+                    setShowPlusMenu(false)
+                  }}
+                >
+                  <Code className="h-4 w-4 mr-2" />
+                  コード
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center"
+                  onClick={() => {
+                    editor.chain().focus().setHorizontalRule().run()
+                    setShowPlusMenu(false)
+                  }}
+                >
+                  <Minus className="h-4 w-4 mr-2" />
+                  区切り線
+                </button>
+              </div>
             )}
           </div>
+        </FloatingMenu>
+      )}
+
+      {/* Bubble Menu - テキスト選択時に表示 */}
+      {editor && (
+        <BubbleMenu 
+          editor={editor} 
+          tippyOptions={{ duration: 100 }}
+          className="bubble-menu"
+        >
+          <div className="bg-gray-900 rounded-lg shadow-lg p-1 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={`p-1.5 h-7 ${editor.isActive('bold') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+            >
+              <Bold className="h-3.5 w-3.5 text-white" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={`p-1.5 h-7 ${editor.isActive('italic') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+            >
+              <Italic className="h-3.5 w-3.5 text-white" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={`p-1.5 h-7 ${editor.isActive('strike') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+            >
+              <Strikethrough className="h-3.5 w-3.5 text-white" />
+            </Button>
+            <div className="w-px h-5 bg-gray-600" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={setLink}
+              className={`p-1.5 h-7 ${editor.isActive('link') ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+            >
+              <LinkIcon className="h-3.5 w-3.5 text-white" />
+            </Button>
+          </div>
+        </BubbleMenu>
+      )}
+
+      {/* メインエディタ */}
+      <div className="mt-8 relative">
+        <EditorContent 
+          editor={editor} 
+          className="note-editor-content prose prose-lg max-w-none"
+        />
+      </div>
+
+      {/* フッター統計 */}
+      <div className="flex justify-between items-center mt-12 pt-4 border-t text-sm text-gray-500">
+        <div className="flex space-x-4">
+          <span>{characterCount.toLocaleString()} 文字</span>
+          <span>{wordCount.toLocaleString()} 単語</span>
         </div>
+        {characterCount > characterLimit * 0.8 && (
+          <span className={characterCount > characterLimit ? 'text-red-500' : 'text-orange-500'}>
+            文字数制限まで {(characterLimit - characterCount).toLocaleString()} 文字
+          </span>
+        )}
       </div>
 
       {/* エディタ用CSS - note風スタイル */}
       <style dangerouslySetInnerHTML={{ __html: `
         .note-editor-content .ProseMirror {
           outline: none;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-          color: #333;
-          font-size: 16px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'YuGothic', 'Yu Gothic', Meiryo, sans-serif;
+          color: #222;
           line-height: 1.8;
+          font-size: 16px;
+          padding-left: 50px;
+          position: relative;
         }
         
         .note-editor-content .ProseMirror h1 {
-          font-size: 30px;
+          font-size: 32px;
           font-weight: 700;
-          margin: 40px 0 20px 0;
-          line-height: 1.4;
+          margin: 2.5em 0 1em 0;
+          line-height: 1.3;
           color: #222;
+          letter-spacing: -0.02em;
         }
         
         .note-editor-content .ProseMirror h2 {
-          font-size: 24px;
+          font-size: 26px;
           font-weight: 700;
-          margin: 36px 0 16px 0;
+          margin: 2em 0 0.8em 0;
           line-height: 1.4;
           color: #222;
-          border-bottom: none;
+          letter-spacing: -0.01em;
         }
         
         .note-editor-content .ProseMirror h3 {
           font-size: 20px;
           font-weight: 700;
-          margin: 32px 0 12px 0;
+          margin: 1.8em 0 0.6em 0;
           line-height: 1.5;
           color: #222;
         }
         
         .note-editor-content .ProseMirror p {
-          margin: 16px 0;
+          margin: 1.2em 0;
           line-height: 1.8;
           font-size: 16px;
           color: #222;
         }
         
+        .note-editor-content .ProseMirror p:first-child {
+          margin-top: 0;
+        }
+        
         .note-editor-content .ProseMirror blockquote {
-          border-left: 3px solid #333;
-          padding-left: 20px;
-          margin: 20px 0;
+          border-left: 3px solid #ddd;
+          padding-left: 1em;
+          margin: 1.5em 0;
           font-style: normal;
           color: #666;
         }
         
         .note-editor-content .ProseMirror ul, 
         .note-editor-content .ProseMirror ol {
-          padding-left: 30px;
-          margin: 20px 0;
+          padding-left: 1.5em;
+          margin: 1.2em 0;
         }
         
         .note-editor-content .ProseMirror li {
-          margin: 8px 0;
+          margin: 0.5em 0;
           line-height: 1.8;
         }
         
+        .note-editor-content .ProseMirror li p {
+          margin: 0.5em 0;
+        }
+        
         .note-editor-content .ProseMirror code {
-          background-color: #f7f7f7;
-          padding: 2px 4px;
+          background-color: #f6f6f6;
+          padding: 0.2em 0.4em;
           border-radius: 3px;
-          font-size: 14px;
-          font-family: Consolas, Monaco, 'Courier New', monospace;
+          font-size: 0.9em;
+          font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+          color: #222;
         }
         
         .note-editor-content .ProseMirror pre {
-          background-color: #f7f7f7;
-          color: #333;
-          padding: 16px;
-          border-radius: 4px;
-          margin: 20px 0;
+          background-color: #f6f6f6;
+          color: #222;
+          padding: 1em;
+          border-radius: 6px;
+          margin: 1.5em 0;
           overflow-x: auto;
           font-size: 14px;
-          line-height: 1.5;
+          line-height: 1.6;
+        }
+        
+        .note-editor-content .ProseMirror pre code {
+          background: none;
+          padding: 0;
+          font-size: inherit;
         }
         
         .note-editor-content .ProseMirror hr {
           border: none;
-          border-top: 1px solid #ddd;
-          margin: 40px 0;
+          border-top: 1px solid #e6e6e6;
+          margin: 3em 0;
         }
         
         .note-editor-content .ProseMirror img {
           max-width: 100%;
           height: auto;
-          margin: 30px auto;
+          margin: 2em auto;
           display: block;
+          border-radius: 8px;
         }
         
         .note-editor-content .ProseMirror strong {
-          font-weight: 700;
+          font-weight: 600;
           color: #222;
         }
         
@@ -520,32 +832,51 @@ export default function NoteEditor({
           font-style: italic;
         }
         
+        .note-editor-content .ProseMirror s {
+          text-decoration: line-through;
+          color: #666;
+        }
+        
         .note-editor-content .ProseMirror a {
           color: #03a9f4;
           text-decoration: none;
-          border-bottom: 1px solid #03a9f4;
+          border-bottom: 1px solid transparent;
+          transition: border-color 0.2s;
         }
         
         .note-editor-content .ProseMirror a:hover {
-          color: #0288d1;
-          border-bottom-color: #0288d1;
+          border-bottom-color: #03a9f4;
         }
         
         .note-editor-content .ProseMirror .is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
-          color: #9ca3af;
+          color: #aaa;
           pointer-events: none;
           height: 0;
+          font-style: normal;
         }
         
-        .floating-menu,
         .bubble-menu {
           z-index: 50;
         }
         
+        .floating-menu-plus {
+          z-index: 20;
+        }
+        
         .note-editor-content .ProseMirror:focus {
           outline: none;
+        }
+
+        /* 選択時のハイライト */
+        .note-editor-content .ProseMirror ::selection {
+          background-color: rgba(3, 169, 244, 0.15);
+        }
+
+        /* Floating Menu のカスタムスタイル */
+        .floating-menu-plus {
+          margin-left: -45px;
         }
       ` }} />
     </div>

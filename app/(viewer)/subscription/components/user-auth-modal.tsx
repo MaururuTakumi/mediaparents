@@ -53,7 +53,7 @@ export default function UserAuthModal({ onClose, onSuccess }: UserAuthModalProps
         const { data: writer } = await supabase
           .from('writers')
           .select('id')
-          .eq('auth_id', data.user.id)
+          .eq('id', data.user.id)
           .single()
 
         if (writer) {

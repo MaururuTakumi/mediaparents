@@ -418,7 +418,7 @@ export default function ArticleComments({ articleId, isPremium }: ArticleComment
         <Alert className="mb-8">
           <AlertDescription>
             コメントを投稿するには
-            <Link href="/login" className="text-blue-600 hover:underline mx-1">
+            <Link href="/viewer/login" className="text-blue-600 hover:underline mx-1">
               ログイン
             </Link>
             してください。

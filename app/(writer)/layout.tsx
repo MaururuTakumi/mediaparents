@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CreatorHeader from '@/components/creator-header'
 
-export default async function CreatorLayout({
+export default async function WriterLayout({
   children,
 }: {
   children: React.ReactNode
@@ -13,18 +13,22 @@ export default async function CreatorLayout({
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    redirect('/login')
+    redirect('/writer/login')
   }
 
-  // Check if user is a writer (updated to use auth_id)
+  // Check if user is a writer
   const { data: writer } = await supabase
     .from('writers')
     .select('*')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
-  if (!writer) {
-    redirect('/register')
+  // Also check if user has Tokyo University email
+  const isTokyoUnivEmail = user.email?.endsWith('@g.ecc.u-tokyo.ac.jp')
+
+  if (!writer && !isTokyoUnivEmail) {
+    // Not a writer, redirect to viewer pages
+    redirect('/articles')
   }
 
   return (

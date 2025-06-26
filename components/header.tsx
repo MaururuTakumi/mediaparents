@@ -35,7 +35,7 @@ export default function Header() {
         const { data: writerData } = await supabase
           .from('writers')
           .select('*')
-          .eq('auth_id', session.user.id)
+          .eq('id', session.user.id)
           .single()
         
         setWriter(writerData)
@@ -51,7 +51,7 @@ export default function Header() {
         supabase
           .from('writers')
           .select('*')
-          .eq('auth_id', user.id)
+          .eq('id', user.id)
           .single()
           .then(({ data }) => setWriter(data))
       }
@@ -146,7 +146,7 @@ export default function Header() {
                     ライターになる
                   </Button>
                 </Link>
-                <Link href="/login">
+                <Link href="/viewer/login">
                   <Button variant="outline" size="sm" className="h-8 text-sm">
                     ログイン
                   </Button>
@@ -238,7 +238,7 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/login">
+                  <Link href="/viewer/login">
                     <Button variant="outline" size="sm" className="w-full">
                       ログイン
                     </Button>

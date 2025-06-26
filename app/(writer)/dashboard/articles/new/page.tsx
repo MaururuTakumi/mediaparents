@@ -5,11 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Sparkles, Eye, Save, FileText, Wand2 } from 'lucide-react'
+import { ArrowLeft, Wand2 } from 'lucide-react'
 import Link from 'next/link'
 import NoteEditor from '@/components/note-editor'
 
@@ -113,24 +112,7 @@ export default function NewArticlePage() {
     }
   }, [title, content, excerpt])
 
-  // 自動保存機能
-  useEffect(() => {
-    if (!title && !content) return
-    
-    const autoSaveInterval = setInterval(() => {
-      if (hasUnsavedChanges) {
-        handleAutoSave()
-      }
-    }, 30000) // 30秒ごとに自動保存
-
-    return () => clearInterval(autoSaveInterval)
-  }, [title, content, hasUnsavedChanges])
-
-  // 変更の検知
-  useEffect(() => {
-    setHasUnsavedChanges(true)
-  }, [title, content, excerpt, tags])
-
+  // 自動保存のハンドラー
   const handleAutoSave = async () => {
     if (!title.trim() || !content.trim()) return
     
@@ -142,6 +124,11 @@ export default function NewArticlePage() {
     } catch (error) {
       console.error('自動保存に失敗しました:', error)
     }
+  }
+
+  // NoteEditorのonSaveコールバック
+  const handleEditorSave = () => {
+    handleAutoSave()
   }
 
   const handleSubmit = async (status: 'draft' | 'published', isAutoSave = false) => {
@@ -165,7 +152,7 @@ export default function NewArticlePage() {
       const { data: writer } = await supabase
         .from('writers')
         .select('id')
-        .eq('auth_id', user.id)
+        .eq('id', user.id)
         .single()
 
       if (!writer) throw new Error('ライター情報が見つかりません')
@@ -285,16 +272,6 @@ export default function NewArticlePage() {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* 保存状態の表示 */}
-              <div className="text-sm text-gray-500">
-                {lastSaved && !hasUnsavedChanges && (
-                  <span>保存済み</span>
-                )}
-                {hasUnsavedChanges && (
-                  <span className="text-orange-600">未保存</span>
-                )}
-              </div>
-              
               <Button
                 onClick={() => handleSubmit('draft')}
                 variant="ghost"
@@ -325,22 +302,15 @@ export default function NewArticlePage() {
             {/* タイトルと記事本文（note風レイアウト） */}
             <div className="bg-white">
               <div className="max-w-3xl mx-auto px-8 pt-8 pb-24">
-                {/* タイトル入力 */}
-                <input
-                  placeholder="タイトル"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  maxLength={200}
-                  className="w-full text-3xl font-bold border-none outline-none placeholder:text-gray-300 mb-6"
-                  style={{ fontSize: '28px', lineHeight: '1.4', color: '#222' }}
-                />
-                
-                {/* エディタ */}
+                {/* note-editorコンポーネントを使用 */}
                 <NoteEditor
+                  title={title}
                   content={content}
+                  onTitleChange={setTitle}
                   onUpdate={setContent}
+                  onSave={handleEditorSave}
                   placeholder="本文を書く"
-                  characterLimit={10000}
+                  characterLimit={50000}
                 />
                 
                 {/* 記事設定（下部に配置） */}
@@ -385,7 +355,7 @@ export default function NewArticlePage() {
                   </div>
                   
                   {/* タグ設定 */}
-                  <div className="pb-8 border-b border-gray-200">
+                  <div className="pb-8">
                     <Label htmlFor="tags" className="text-sm font-medium text-gray-700 mb-2 block">
                       タグ
                     </Label>
@@ -404,24 +374,22 @@ export default function NewArticlePage() {
                       ))}
                     </div>
                   </div>
-                  
                 </div>
               </div>
             </div>
-
           </TabsContent>
 
           <TabsContent value="preview" className="mt-0">
             {/* プレビュー表示（note風） */}
             <div className="bg-white min-h-screen">
               <div className="max-w-3xl mx-auto px-8 pt-8 pb-24">
-                <h1 className="text-3xl font-bold mb-6" style={{ fontSize: '28px', lineHeight: '1.4', color: '#222' }}>
+                <h1 className="text-3xl font-bold mb-6" style={{ fontSize: '32px', lineHeight: '1.3', color: '#222', letterSpacing: '-0.02em' }}>
                   {title || 'タイトル'}
                 </h1>
                 <div 
-                  className="note-preview-content"
+                  className="note-preview-content prose prose-lg max-w-none"
                   dangerouslySetInnerHTML={{ 
-                    __html: content || '<p style="color: #999;">本文を書く</p>' 
+                    __html: content || '<p style="color: #aaa;">本文を書く</p>' 
                   }} 
                 />
               </div>
@@ -433,89 +401,139 @@ export default function NewArticlePage() {
       {/* プレビュー用CSS */}
       <style dangerouslySetInnerHTML={{ __html: `
         .note-preview-content {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-          color: #333;
-          font-size: 16px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'YuGothic', 'Yu Gothic', Meiryo, sans-serif;
+          color: #222;
           line-height: 1.8;
+          font-size: 16px;
         }
         
         .note-preview-content h1 {
-          font-size: 30px;
+          font-size: 32px;
           font-weight: 700;
-          margin: 40px 0 20px 0;
-          line-height: 1.4;
+          margin: 2.5em 0 1em 0;
+          line-height: 1.3;
           color: #222;
+          letter-spacing: -0.02em;
         }
         
         .note-preview-content h2 {
-          font-size: 24px;
+          font-size: 26px;
           font-weight: 700;
-          margin: 36px 0 16px 0;
+          margin: 2em 0 0.8em 0;
           line-height: 1.4;
           color: #222;
+          letter-spacing: -0.01em;
         }
         
         .note-preview-content h3 {
           font-size: 20px;
           font-weight: 700;
-          margin: 32px 0 12px 0;
+          margin: 1.8em 0 0.6em 0;
           line-height: 1.5;
           color: #222;
         }
         
         .note-preview-content p {
-          margin: 20px 0;
+          margin: 1.2em 0;
           line-height: 1.8;
           font-size: 16px;
-          color: #333;
-        }
-        
-        .note-preview-content ul,
-        .note-preview-content ol {
-          padding-left: 30px;
-          margin: 20px 0;
-        }
-        
-        .note-preview-content li {
-          margin: 8px 0;
-          line-height: 1.8;
-        }
-        
-        .note-preview-content strong {
-          font-weight: 700;
           color: #222;
         }
         
-        .note-preview-content a {
-          color: #03a9f4;
-          text-decoration: none;
-          border-bottom: 1px solid #03a9f4;
-        }
-        
-        .note-preview-content a:hover {
-          color: #0288d1;
-          border-bottom-color: #0288d1;
+        .note-preview-content p:first-child {
+          margin-top: 0;
         }
         
         .note-preview-content blockquote {
-          border-left: 3px solid #333;
-          padding-left: 20px;
-          margin: 20px 0;
+          border-left: 3px solid #ddd;
+          padding-left: 1em;
+          margin: 1.5em 0;
           font-style: normal;
           color: #666;
+        }
+        
+        .note-preview-content ul, 
+        .note-preview-content ol {
+          padding-left: 1.5em;
+          margin: 1.2em 0;
+        }
+        
+        .note-preview-content li {
+          margin: 0.5em 0;
+          line-height: 1.8;
+        }
+        
+        .note-preview-content li p {
+          margin: 0.5em 0;
+        }
+        
+        .note-preview-content code {
+          background-color: #f6f6f6;
+          padding: 0.2em 0.4em;
+          border-radius: 3px;
+          font-size: 0.9em;
+          font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+          color: #222;
+        }
+        
+        .note-preview-content pre {
+          background-color: #f6f6f6;
+          color: #222;
+          padding: 1em;
+          border-radius: 6px;
+          margin: 1.5em 0;
+          overflow-x: auto;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+        
+        .note-preview-content pre code {
+          background: none;
+          padding: 0;
+          font-size: inherit;
+        }
+        
+        .note-preview-content hr {
+          border: none;
+          border-top: 1px solid #e6e6e6;
+          margin: 3em 0;
         }
         
         .note-preview-content img {
           max-width: 100%;
           height: auto;
-          margin: 30px auto;
+          margin: 2em auto;
           display: block;
+          border-radius: 8px;
         }
         
-        .note-preview-content hr {
-          border: none;
-          border-top: 1px solid #ddd;
-          margin: 40px 0;
+        .note-preview-content strong {
+          font-weight: 600;
+          color: #222;
+        }
+        
+        .note-preview-content em {
+          font-style: italic;
+        }
+        
+        .note-preview-content s {
+          text-decoration: line-through;
+          color: #666;
+        }
+        
+        .note-preview-content a {
+          color: #03a9f4;
+          text-decoration: none;
+          border-bottom: 1px solid transparent;
+          transition: border-color 0.2s;
+        }
+        
+        .note-preview-content a:hover {
+          border-bottom-color: #03a9f4;
+        }
+        
+        .note-preview-content ::selection {
+          background-color: rgba(3, 169, 244, 0.15);
         }
       ` }} />
     </div>

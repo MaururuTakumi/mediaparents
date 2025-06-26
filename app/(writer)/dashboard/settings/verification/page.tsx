@@ -38,7 +38,7 @@ export default function VerificationPage() {
       const { data: writer } = await supabase
         .from('writers')
         .select('id, university_verified, student_id_verified')
-        .eq('auth_id', user.id)
+        .eq('id', user.id)
         .single()
 
       if (writer) {

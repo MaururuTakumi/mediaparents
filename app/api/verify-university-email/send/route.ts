@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const { data: writer, error: writerError } = await supabase
       .from('writers')
       .select('id')
-      .eq('auth_id', user.id)
+      .eq('id', user.id)
       .single()
 
     if (writerError || !writer) {

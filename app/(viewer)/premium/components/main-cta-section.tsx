@@ -56,7 +56,7 @@ export default function MainCTASection() {
               size="lg" 
               className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 px-12 py-6 text-xl font-bold"
             >
-              <Link href="/register" className="flex items-center">
+              <Link href="/viewer/register" className="flex items-center">
                 1ヶ月無料で体験を始める
                 <ArrowRight className="ml-3 h-6 w-6" />
               </Link>

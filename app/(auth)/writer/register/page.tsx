@@ -29,6 +29,7 @@ export default function WriterRegisterPage() {
   
   const [errors, setErrors] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
 
   const validateForm = () => {
     const newErrors: string[] = []
@@ -89,7 +90,11 @@ export default function WriterRegisterPage() {
           })
 
           if (signInError) {
-            setErrors(['このメールアドレスは既に登録されています。パスワードが正しくない場合は、ライターログインページからログインしてください。'])
+            setErrors([
+              'このメールアドレスは既に登録されています。',
+              'パスワードが正しくない場合は、下記の「パスワードを忘れた方」からパスワードをリセットしてください。'
+            ])
+            setShowPasswordReset(true)
             setIsLoading(false)
             return
           }
@@ -99,19 +104,20 @@ export default function WriterRegisterPage() {
             const { data: existingWriter } = await supabase
               .from('writers')
               .select('*')
-              .eq('auth_id', signInData.user.id)
+              .eq('id', signInData.user.id)
               .single()
 
             if (existingWriter) {
               // 既にライターの場合はダッシュボードへ
               router.push('/dashboard')
+              router.refresh()
               return
             } else {
               // ライターとして未登録の場合は新規登録
               const { data: writerData, error: writerError } = await supabase
                 .from('writers')
                 .insert({
-                  auth_id: signInData.user.id,
+                  id: signInData.user.id,
                   name: formData.name,
                   university: formData.university,
                   faculty: formData.faculty,
@@ -132,6 +138,7 @@ export default function WriterRegisterPage() {
 
               // 登録成功
               router.push('/dashboard/settings/verification')
+              router.refresh()
               return
             }
           }
@@ -151,19 +158,19 @@ export default function WriterRegisterPage() {
       const { data: existingWriter } = await supabase
         .from('writers')
         .select('*')
-        .eq('auth_id', authData.user.id)
+        .eq('id', authData.user.id)
         .single()
 
       if (existingWriter) {
         console.log('Writer profile already exists, redirecting to dashboard')
-        router.push('/dashboard')
+        router.push('/writer/dashboard')
         return
       }
 
       const { data: writerData, error: writerError } = await supabase
         .from('writers')
         .insert({
-          auth_id: authData.user.id,
+          id: authData.user.id,
           name: formData.name,
           university: formData.university,
           faculty: formData.faculty,
@@ -189,7 +196,7 @@ export default function WriterRegisterPage() {
       }
 
       // 登録成功
-      router.push('/dashboard/settings/verification')
+      router.push('/writer/dashboard/settings/verification')
 
     } catch (error: any) {
       console.error('Registration error:', error)
@@ -229,14 +236,18 @@ export default function WriterRegisterPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Error Messages */}
               {errors.length > 0 && (
-                <Alert variant="destructive">
+                <Alert variant={showPasswordReset ? "default" : "destructive"}>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <ul className="list-disc list-inside space-y-1">
-                      {errors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
+                    {errors.length === 1 ? (
+                      <p>{errors[0]}</p>
+                    ) : (
+                      <ul className="list-disc list-inside space-y-1">
+                        {errors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
@@ -395,6 +406,21 @@ export default function WriterRegisterPage() {
                 </Link>
               </p>
             </div>
+
+            {/* Password Reset Link - 条件付き表示 */}
+            {showPasswordReset && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800 mb-2">
+                  パスワードをお忘れの方
+                </p>
+                <Link 
+                  href="/forgot-password" 
+                  className="text-blue-600 hover:text-blue-500 font-medium text-sm"
+                >
+                  パスワードリセットはこちら →
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 

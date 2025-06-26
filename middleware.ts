@@ -1,88 +1,85 @@
+import { createMiddlewareClient } from '@/lib/supabase/middleware'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  const supabase = createMiddlewareClient(req, res)
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+  const path = req.nextUrl.pathname
 
-  // 管理者ページへのアクセスをチェック
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    console.log('[Middleware] Admin route accessed:', request.nextUrl.pathname)
-    
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('[Middleware] Session:', session?.user?.email, session?.user?.id)
-    
-    // 未ログインの場合はログインページへ
-    if (!session) {
-      console.log('[Middleware] No session, redirecting to login')
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-    
-    // 管理者権限をチェック
-    const { data: admin, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('is_active', true)
-      .single()
-    
-    console.log('[Middleware] Admin check:', { admin, error })
-    
-    // 管理者でない場合はホームへリダイレクト
-    if (!admin || error) {
-      console.log('[Middleware] Not an admin, redirecting to home')
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-    
-    console.log('[Middleware] Admin access granted')
+  // Skip middleware for auth routes and public assets
+  const skipPaths = [
+    '/viewer/login',
+    '/viewer/register',
+    '/writer/login',
+    '/writer/register',
+    '/forgot-password',
+    '/reset-password',
+    '/api/',
+    '/_next/',
+    '/favicon.ico',
+  ]
+
+  if (skipPaths.some(p => path.startsWith(p))) {
+    return res
   }
 
-  // ライター専用ページへのアクセスをチェック
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    const { data: { session } } = await supabase.auth.getSession()
+  // Get user session
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Protected routes that require authentication
+  const protectedPaths = ['/dashboard', '/subscription', '/profile']
+  const isProtectedPath = protectedPaths.some(p => path.startsWith(p))
+
+  // Redirect to login if accessing protected route without auth
+  if (!user && isProtectedPath) {
+    const redirectTo = path.startsWith('/dashboard') ? '/writer/login' : '/viewer/login'
+    return NextResponse.redirect(new URL(redirectTo, req.url))
+  }
+
+  // For authenticated users accessing dashboard
+  if (user && path.startsWith('/dashboard')) {
+    // Check if user is a writer
+    const isTokyoUnivEmail = user.email?.endsWith('@g.ecc.u-tokyo.ac.jp')
     
-    if (!session) {
-      return NextResponse.redirect(new URL('/writer/login', request.url))
+    if (!isTokyoUnivEmail) {
+      // Not Tokyo Univ email, check writers table
+      const { data: writer } = await supabase
+        .from('writers')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+      
+      if (!writer) {
+        // Not a writer, redirect to articles
+        return NextResponse.redirect(new URL('/articles', req.url))
+      }
     }
-    
-    // ライター情報の確認
+    // User is authorized to access dashboard
+  }
+
+  // For authenticated users, check if they're accessing wrong area
+  if (user && (path === '/subscription' || path === '/profile')) {
+    // Check if user is a writer
+    const isTokyoUnivEmail = user.email?.endsWith('@g.ecc.u-tokyo.ac.jp')
     const { data: writer } = await supabase
       .from('writers')
       .select('id')
-      .eq('auth_id', session.user.id)
-      .single()
+      .eq('id', user.id)
+      .maybeSingle()
     
-    if (!writer) {
-      return NextResponse.redirect(new URL('/writer/register', request.url))
+    if (writer || isTokyoUnivEmail) {
+      // Writer trying to access viewer pages
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
   }
 
-  return supabaseResponse
+  return res
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*']  // 一時的に/adminを除外
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)' 
+  ],
 }

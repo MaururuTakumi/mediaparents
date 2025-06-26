@@ -17,7 +17,6 @@ import { useRouter } from 'next/navigation'
 
 interface Writer {
   id: string
-  auth_id: string
   name: string
   university: string
   faculty?: string

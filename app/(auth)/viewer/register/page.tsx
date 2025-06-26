@@ -67,7 +67,7 @@ export default function RegisterPage() {
           
           // Redirect to login page after 2 seconds
           setTimeout(() => {
-            router.push('/login')
+            router.push('/viewer/login')
           }, 2000)
           return
         }
@@ -112,7 +112,7 @@ export default function RegisterPage() {
         if (profileError.code === '23505') {
           setErrors(['アカウントは既に存在しています。ログインしてください。'])
           setTimeout(() => {
-            router.push('/login')
+            router.push('/viewer/login')
           }, 2000)
           return
         }
@@ -177,7 +177,7 @@ export default function RegisterPage() {
                         <li key={index}>
                           {error}
                           {error.includes('既に登録されています') && (
-                            <Link href="/login" className="ml-2 text-blue-600 hover:text-blue-500 underline">
+                            <Link href="/viewer/login" className="ml-2 text-blue-600 hover:text-blue-500 underline">
                               ログインページへ
                             </Link>
                           )}
@@ -276,7 +276,7 @@ export default function RegisterPage() {
             <div className="mt-6 text-center border-t pt-6">
               <p className="text-sm text-gray-600">
                 既にアカウントをお持ちですか？{' '}
-                <Link href="/login" className="text-blue-600 hover:text-blue-500 font-medium">
+                <Link href="/viewer/login" className="text-blue-600 hover:text-blue-500 font-medium">
                   ログイン
                 </Link>
               </p>

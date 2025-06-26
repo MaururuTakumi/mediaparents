@@ -245,12 +245,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                               無料会員の方も月3本まで無料でお読みいただけます。
                             </p>
                             <div className="space-x-4">
-                              <Link href="/login">
+                              <Link href="/viewer/login">
                                 <Button className="bg-blue-500 hover:bg-blue-600">
                                   ログイン
                                 </Button>
                               </Link>
-                              <Link href="/register">
+                              <Link href="/viewer/register">
                                 <Button variant="outline">
                                   無料会員登録
                                 </Button>

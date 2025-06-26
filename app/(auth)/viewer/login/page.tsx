@@ -56,6 +56,22 @@ export default function LoginPage() {
 
       console.log('User authenticated:', data.user.id)
 
+      // ライターかどうかチェック
+      const { data: writer } = await supabase
+        .from('writers')
+        .select('id')
+        .eq('id', data.user.id)
+        .single()
+
+      const isTokyoUnivEmail = data.user.email?.endsWith('@g.ecc.u-tokyo.ac.jp')
+
+      if (writer || isTokyoUnivEmail) {
+        // ライターの場合はライターダッシュボードへ
+        console.log('User is a writer, redirecting to writer dashboard...')
+        window.location.href = '/dashboard'
+        return
+      }
+
       // 読者としてログイン成功
       console.log('Login successful, redirecting to home...')
       
@@ -184,7 +200,7 @@ export default function LoginPage() {
             <div className="mt-6 text-center border-t pt-6">
               <p className="text-sm text-gray-600">
                 アカウントをお持ちでないですか？{' '}
-                <Link href="/register" className="text-blue-600 hover:text-blue-500 font-medium">
+                <Link href="/viewer/register" className="text-blue-600 hover:text-blue-500 font-medium">
                   新規登録
                 </Link>
               </p>

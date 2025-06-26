@@ -35,7 +35,7 @@ async function getDashboardData() {
   const { data: writer } = await supabase
     .from('writers')
     .select('*')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!writer) redirect('/register')

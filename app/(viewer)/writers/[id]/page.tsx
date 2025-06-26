@@ -309,7 +309,7 @@ export default async function WriterDetailPage({ params }: WriterDetailPageProps
               同世代の学生や親御さんの役に立ちます。
             </p>
             <Button asChild size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
-              <Link href="/register">
+              <Link href="/writer/register">
                 <Star className="mr-2 h-4 w-4" />
                 ライターとして参加する
               </Link>

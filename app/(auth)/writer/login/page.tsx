@@ -53,8 +53,9 @@ export default function WriterLoginPage() {
       const { data: writer, error: writerError } = await supabase
         .from('writers')
         .select('id')
-        .eq('auth_id', data.user.id)
+        .eq('id', data.user.id)
         .single()
+
 
       if (writerError || !writer) {
         // ライターではない場合
@@ -62,8 +63,11 @@ export default function WriterLoginPage() {
         throw new Error('ライターアカウントが見つかりません。ライター登録を行ってください。')
       }
 
-      // ライターダッシュボードにリダイレクト
-      window.location.href = '/dashboard'
+
+      // ログイン成功後、即座にリダイレクト
+      // セッションはサーバー側で確認される
+      setIsLoading(false)
+      router.push('/dashboard')
 
     } catch (error: any) {
       setError(error.message || 'ログインに失敗しました')
@@ -177,7 +181,7 @@ export default function WriterLoginPage() {
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
                 読者としてログインしたい方は
-                <Link href="/login" className="text-blue-600 hover:text-blue-500 ml-1">
+                <Link href="/viewer/login" className="text-blue-600 hover:text-blue-500 ml-1">
                   こちら
                 </Link>
               </p>

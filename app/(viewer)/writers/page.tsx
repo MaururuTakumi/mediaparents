@@ -293,7 +293,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
                   </Button>
                 )}
                 <Button asChild>
-                  <a href="/register">ライターとして参加</a>
+                  <a href="/writer/register">ライターとして参加</a>
                 </Button>
               </div>
             </div>
@@ -315,7 +315,7 @@ export default async function WritersPage({ searchParams }: WritersPageProps) {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button asChild size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
-                  <a href="/register">
+                  <a href="/writer/register">
                     <Star className="mr-2 h-4 w-4" />
                     ライター登録
                   </a>

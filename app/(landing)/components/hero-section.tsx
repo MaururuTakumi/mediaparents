@@ -78,7 +78,7 @@ export default function HeroSection() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 text-lg">
-              <Link href="/register">
+              <Link href="/writer/register">
                 今すぐライター登録（3分で完了）
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

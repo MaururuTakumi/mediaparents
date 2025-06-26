@@ -286,7 +286,7 @@ export default async function Home() {
               現在、ライターによる記事作成が進行中です。しばらくお待ちください。
             </p>
             <div className="flex gap-4 justify-center">
-              <Link href="/register" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              <Link href="/writer/register" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                 ライターとして参加
               </Link>
               <Link href="/articles" className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">

@@ -113,7 +113,7 @@ export default function FinalCTASection() {
               size="lg" 
               className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-4 text-lg"
             >
-              <Link href="/register">
+              <Link href="/writer/register">
                 無料でライター登録を始める
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

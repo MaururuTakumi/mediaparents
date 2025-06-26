@@ -52,7 +52,7 @@ async function getArticles() {
   const { data: writer } = await supabase
     .from('writers')
     .select('id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!writer) redirect('/register')

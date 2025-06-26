@@ -128,16 +128,25 @@ export default function ForgotPasswordPage() {
 
             {/* Links */}
             <div className="mt-6 text-center space-y-2">
-              <p className="text-sm text-gray-600">
-                <Link href="/login" className="text-blue-600 hover:text-blue-500 font-medium">
+              <div className="flex justify-center gap-4">
+                <Link href="/viewer/login" className="text-sm text-blue-600 hover:text-blue-500 font-medium">
                   <ArrowLeft className="inline h-3 w-3 mr-1" />
-                  ログインに戻る
+                  読者ログイン
                 </Link>
-              </p>
+                <span className="text-gray-400">|</span>
+                <Link href="/writer/login" className="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                  <ArrowLeft className="inline h-3 w-3 mr-1" />
+                  ライターログイン
+                </Link>
+              </div>
               <p className="text-sm text-gray-600">
                 アカウントをお持ちでないですか？{' '}
-                <Link href="/register" className="text-blue-600 hover:text-blue-500 font-medium">
-                  新規登録
+                <Link href="/viewer/register" className="text-blue-600 hover:text-blue-500 font-medium">
+                  読者登録
+                </Link>
+                {' / '}
+                <Link href="/writer/register" className="text-blue-600 hover:text-blue-500 font-medium">
+                  ライター登録
                 </Link>
               </p>
             </div>

@@ -50,7 +50,7 @@ export default function ArticleQuestions({ articleId, writerId }: ArticleQuestio
       const { data: writer } = await supabase
         .from('writers')
         .select('id')
-        .eq('auth_id', user.id)
+        .eq('id', user.id)
         .single()
       
       setIsWriter(writer?.id === writerId)
@@ -162,7 +162,7 @@ export default function ArticleQuestions({ articleId, writerId }: ArticleQuestio
               質問するにはログインが必要です
             </p>
             <Button asChild>
-              <Link href="/login">ログインする</Link>
+              <Link href="/viewer/login">ログインする</Link>
             </Button>
           </div>
         )}
