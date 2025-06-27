@@ -188,7 +188,7 @@ export default function NoteEditor({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [selectedStyle, setSelectedStyle] = useState('本文')
   const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const editor = useEditor({
     extensions: [

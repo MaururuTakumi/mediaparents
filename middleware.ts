@@ -16,6 +16,7 @@ export async function middleware(req: NextRequest) {
     '/writer/register',
     '/forgot-password',
     '/reset-password',
+    '/waiting-list',
     '/api/',
     '/_next/',
     '/favicon.ico',
