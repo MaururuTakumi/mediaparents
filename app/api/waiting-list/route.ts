@@ -1,6 +1,9 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
   try {
@@ -42,6 +45,27 @@ export async function POST(request: Request) {
         )
       }
       throw error
+    }
+
+    // 管理者への通知メールを送信
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || 'takumi2002929@icloud.com'
+      
+      await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: adminEmail,
+        subject: '【ありがとうお父さんお母さん】新規登録通知',
+        html: `
+          <h2>ウェイティングリストに新規登録がありました</h2>
+          <p><strong>メールアドレス:</strong> ${email}</p>
+          <p><strong>登録日時:</strong> ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
+          <p><strong>早期登録特典:</strong> ${isEarlyBird ? '対象' : '対象外'}</p>
+          ${isEarlyBird ? '<p style="color: #059669;">※7/10までの早期登録者です！</p>' : ''}
+        `
+      })
+    } catch (emailError) {
+      // メール送信エラーがあっても登録は成功扱い
+      console.error('Admin notification email error:', emailError)
     }
 
     return NextResponse.json({
